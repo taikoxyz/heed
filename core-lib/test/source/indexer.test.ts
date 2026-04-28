@@ -103,6 +103,22 @@ describe("createIndexerMailSource", () => {
     await src.listInbox("0xR" as any);
     const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
     expect(body.variables.n).toBe(100);
+    expect(body.variables.since).toBe("0");
+  });
+
+  it("forwards sinceBlock as blockNumber_gte filter", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { mails: [] }, errors: undefined }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    await src.listInbox("0xR" as any, 18000000n, 25);
+    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    expect(body.variables.since).toBe("18000000");
+    expect(body.variables.n).toBe(25);
+    expect(body.query).toContain("blockNumber_gte");
   });
 
   it("throws indexer <status> on non-OK HTTP response", async () => {
