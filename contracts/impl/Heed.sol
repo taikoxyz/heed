@@ -44,8 +44,19 @@ contract Heed is IHeed {
         feeGwei[msg.sender] = valueGwei;
         emit FeeUpdated(msg.sender, valueGwei);
     }
-    function trust(address[] calldata) external pure { revert(); }
-    function untrust(address[] calldata) external pure { revert(); }
+    function trust(address[] calldata senders) external {
+        for (uint256 i; i < senders.length; ++i) {
+            trusts[msg.sender][senders[i]] = true;
+            emit Trusted(msg.sender, senders[i], true);
+        }
+    }
+
+    function untrust(address[] calldata senders) external {
+        for (uint256 i; i < senders.length; ++i) {
+            trusts[msg.sender][senders[i]] = false;
+            emit Trusted(msg.sender, senders[i], false);
+        }
+    }
     function registerDelegate(address, bytes32) external payable { revert(); }
     function revokeDelegate(address) external pure { revert(); }
     function revokeMyself() external pure { revert(); }

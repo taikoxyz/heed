@@ -108,4 +108,33 @@ contract HeedTest is Test {
         tm.setFee(0);
         assertEq(tm.feeGwei(alice), 0);
     }
+
+    function test_trust_addsAndEmits() public {
+        address bob = makeAddr("bob");
+        address carol = makeAddr("carol");
+        address[] memory list = new address[](2);
+        list[0] = bob;
+        list[1] = carol;
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.Trusted(alice, bob, true);
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.Trusted(alice, carol, true);
+        vm.prank(alice);
+        tm.trust(list);
+        assertTrue(tm.trusts(alice, bob));
+        assertTrue(tm.trusts(alice, carol));
+    }
+
+    function test_untrust_removesAndEmits() public {
+        address bob = makeAddr("bob");
+        address[] memory list = new address[](1);
+        list[0] = bob;
+        vm.startPrank(alice);
+        tm.trust(list);
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.Trusted(alice, bob, false);
+        tm.untrust(list);
+        vm.stopPrank();
+        assertFalse(tm.trusts(alice, bob));
+    }
 }
