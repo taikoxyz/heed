@@ -8,7 +8,7 @@ import {
   type PlaintextPayload,
 } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
-import { getCachedKey, putKey } from "../lib/keys";
+import { evictKey, getCachedKey, putKey } from "../lib/keys";
 
 export function useMailDecryption() {
   const { address } = useAccount();
@@ -16,6 +16,7 @@ export function useMailDecryption() {
 
   return async function decrypt(
     contentRefHex: `0x${string}`,
+    options: { force?: boolean } = {},
   ): Promise<PlaintextPayload> {
     if (!address) throw new Error("no wallet connected");
 
@@ -32,6 +33,8 @@ export function useMailDecryption() {
     if (!lockbox) {
       throw new Error("no lockbox for this address");
     }
+
+    if (options.force) evictKey(address, lockbox.keyNonce);
 
     let sk = getCachedKey(address, lockbox.keyNonce);
     if (!sk) {

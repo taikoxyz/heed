@@ -20,6 +20,10 @@ export function clearKeys() {
   cache.clear();
 }
 
+export function evictKey(address: string, nonce: number) {
+  cache.delete(cacheKey(address, nonce));
+}
+
 function cacheKey(address: string, nonce: number) {
   return `${address.toLowerCase()}:${nonce}`;
 }

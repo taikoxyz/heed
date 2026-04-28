@@ -19,6 +19,7 @@ describe("Settings persistence", () => {
       ipfsGateway: "https://gw.example.org",
       indexerUrl: "https://indexer.example.org/graphql",
       maxFeeGwei: 42,
+      pinataJwt: "eyJfake.jwt.value",
     };
     saveSettings(written);
     expect(loadSettings()).toEqual(written);
@@ -30,6 +31,7 @@ describe("Settings persistence", () => {
       ipfsGateway: "",
       indexerUrl: "",
       maxFeeGwei: 0,
+      pinataJwt: "",
     });
   });
 

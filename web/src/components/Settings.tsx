@@ -81,6 +81,23 @@ export function Settings() {
             className="mt-1 w-full border rounded px-2 py-1 font-mono text-sm"
           />
         </label>
+
+        <label className="block">
+          <span className="text-sm">Pinata JWT</span>
+          <input
+            type="password"
+            value={draft.pinataJwt}
+            onChange={(e) => update("pinataJwt", e.target.value)}
+            placeholder="(required to send mail)"
+            className="mt-1 w-full border rounded px-2 py-1 font-mono text-sm"
+            autoComplete="off"
+          />
+          <span className="text-xs text-gray-500 mt-1 block">
+            Used to pin encrypted mail to IPFS. Generate a scoped
+            "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
+            in this browser's localStorage.
+          </span>
+        </label>
       </div>
 
       <div className="flex gap-2 mt-4">

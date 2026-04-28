@@ -5,6 +5,7 @@ export interface Settings {
   ipfsGateway: string;
   indexerUrl: string;
   maxFeeGwei: number;
+  pinataJwt: string;
 }
 
 const KEY = "heed:settings";
@@ -14,6 +15,7 @@ export const EMPTY_SETTINGS: Settings = {
   ipfsGateway: "",
   indexerUrl: "",
   maxFeeGwei: 0,
+  pinataJwt: "",
 };
 
 export function loadSettings(): Settings {
@@ -26,6 +28,7 @@ export function loadSettings(): Settings {
       ipfsGateway: parsed.ipfsGateway ?? "",
       indexerUrl: parsed.indexerUrl ?? "",
       maxFeeGwei: Number(parsed.maxFeeGwei ?? 0),
+      pinataJwt: parsed.pinataJwt ?? "",
     };
   } catch {
     return EMPTY_SETTINGS;
@@ -48,6 +51,7 @@ export interface EffectiveConfig {
   ipfsGateway: string;
   indexerUrl: string | undefined;
   maxFeeGwei: number;
+  pinataJwt: string;
 }
 
 export function getEffectiveConfig(): EffectiveConfig {
@@ -60,5 +64,6 @@ export function getEffectiveConfig(): EffectiveConfig {
     ipfsGateway: s.ipfsGateway || config.ipfsGateway,
     indexerUrl: s.indexerUrl || config.indexerUrl,
     maxFeeGwei: s.maxFeeGwei,
+    pinataJwt: s.pinataJwt,
   };
 }
