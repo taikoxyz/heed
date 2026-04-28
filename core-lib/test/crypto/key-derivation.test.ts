@@ -14,8 +14,8 @@ describe("key derivation", () => {
     const sig = new Uint8Array(65).fill(0x42);
     const priv = deriveX25519Private(sig);
     expect(priv.length).toBe(32);
-    expect(priv[0] & 0b00000111).toBe(0);
-    expect((priv[31] & 0b11000000)).toBe(0b01000000);
+    expect(priv[0]! & 0b00000111).toBe(0);
+    expect((priv[31]! & 0b11000000)).toBe(0b01000000);
   });
 
   it("derives a public key that matches @noble/curves x25519.getPublicKey", () => {
