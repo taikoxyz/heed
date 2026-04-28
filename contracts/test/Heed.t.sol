@@ -279,4 +279,29 @@ contract HeedTest is Test {
         IHeed.InboxView[] memory vs = tm.getInboxes(list);
         assertEq(vs.length, 2);
     }
+
+    function test_registerDelegate_revertsWhenDelegateCannotReceiveEth() public {
+        Reverter reverter = new Reverter();
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert("fund-fail");
+        tm.registerDelegate{value: 0.01 ether}(address(reverter), bytes32(0));
+    }
+
+    function test_revokeDelegate_revertsWhenNotOwner() public {
+        address delegate = makeAddr("delegate");
+        address bob = makeAddr("bob");
+        vm.prank(alice);
+        tm.registerDelegate(delegate, bytes32(0));
+        vm.prank(bob);
+        vm.expectRevert("not-owner");
+        tm.revokeDelegate(delegate);
+    }
+
+    function test_revokeMyself_revertsWhenNotDelegate() public {
+        address notDelegate = makeAddr("notDelegate");
+        vm.prank(notDelegate);
+        vm.expectRevert(IHeed.NotADelegate.selector);
+        tm.revokeMyself();
+    }
 }
