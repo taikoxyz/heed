@@ -1,0 +1,18 @@
+[profile.default]
+src = "impl"
+out = "out"
+libs = ["lib"]
+solc_version = "0.8.27"
+optimizer = true
+optimizer_runs = 1_000_000
+via_ir = true
+gas_reports = ["Heed"]
+fuzz = { runs = 4096 }
+invariant = { runs = 256, depth = 64, fail_on_revert = false }
+
+[rpc_endpoints]
+taiko_mainnet = "${TAIKO_MAINNET_RPC}"
+anvil = "http://127.0.0.1:8545"
+
+[etherscan]
+taiko = { key = "${TAIKOSCAN_API_KEY}", url = "https://api.taikoscan.io/api" }
