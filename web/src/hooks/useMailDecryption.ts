@@ -7,7 +7,7 @@ import {
   type EncryptedPayload,
   type PlaintextPayload,
 } from "@heed/core";
-import { config } from "../lib/config";
+import { getEffectiveConfig } from "../lib/settings";
 import { getCachedKey, putKey } from "../lib/keys";
 
 export function useMailDecryption() {
@@ -19,9 +19,10 @@ export function useMailDecryption() {
   ): Promise<PlaintextPayload> {
     if (!address) throw new Error("no wallet connected");
 
+    const cfg = getEffectiveConfig();
     const digest = hexToBytes(contentRefHex);
     const cid = digestToCid(digest);
-    const bytes = await fetchCid(cid, config.ipfsGateway);
+    const bytes = await fetchCid(cid, cfg.ipfsGateway);
 
     const env = JSON.parse(
       new TextDecoder().decode(bytes),
@@ -35,7 +36,7 @@ export function useMailDecryption() {
     let sk = getCachedKey(address, lockbox.keyNonce);
     if (!sk) {
       const sig = await signTypedDataAsync({
-        domain: KEY_TYPED_DATA.domain(config.chainId, config.contractAddress),
+        domain: KEY_TYPED_DATA.domain(cfg.chainId, cfg.contractAddress),
         types: KEY_TYPED_DATA.types,
         primaryType: KEY_TYPED_DATA.primaryType,
         message: KEY_TYPED_DATA.message(lockbox.keyNonce),

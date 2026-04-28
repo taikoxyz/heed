@@ -3,7 +3,7 @@ import { useAccount } from "wagmi";
 import { createPublicClient, http } from "viem";
 import { taiko } from "viem/chains";
 import { createRpcMailSource, createIndexerMailSource } from "@heed/core";
-import { config } from "../lib/config";
+import { getEffectiveConfig } from "../lib/settings";
 
 export function useInbox() {
   const { address } = useAccount();
@@ -11,15 +11,16 @@ export function useInbox() {
     queryKey: ["inbox", address],
     enabled: !!address,
     queryFn: async () => {
-      const source = config.indexerUrl
-        ? createIndexerMailSource(config.indexerUrl)
+      const cfg = getEffectiveConfig();
+      const source = cfg.indexerUrl
+        ? createIndexerMailSource(cfg.indexerUrl)
         : createRpcMailSource({
             client: createPublicClient({
               chain: taiko,
-              transport: http(config.rpcUrl),
+              transport: http(cfg.rpcUrl),
             }),
-            contract: config.contractAddress,
-            deployedAtBlock: config.deployedAtBlock,
+            contract: cfg.contractAddress,
+            deployedAtBlock: cfg.deployedAtBlock,
           });
       return source.listInbox(address!, undefined, 100);
     },
