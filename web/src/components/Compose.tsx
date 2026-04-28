@@ -22,15 +22,19 @@ export function Compose() {
   const [body, setBody] = useState("");
   const [feeGwei, setFeeGwei] = useState<number>(0);
   const [feeHint, setFeeHint] = useState<string>("");
+  const [plaintextMode, setPlaintextMode] = useState(false);
   const [stage, setStage] = useState<SendStage | null>(null);
-  const [result, setResult] = useState<{ txHash: string; cid: string } | null>(
-    null,
-  );
+  const [result, setResult] = useState<{
+    txHash: string;
+    cid: string;
+    encrypted: boolean;
+  } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onToBlur() {
     setFeeHint("");
+    setPlaintextMode(false);
     if (!isAddress(to)) return;
     try {
       const cfg = getEffectiveConfig();
@@ -41,7 +45,19 @@ export function Compose() {
       const reader = createReadClient(client, cfg.contractAddress);
       const inbox = await reader.getInbox(to as Address);
       setFeeGwei(Number(inbox.feeGwei));
-      setFeeHint(`Recipient charges ${inbox.feeGwei} gwei.`);
+      const hasKey =
+        inbox.keys[0] &&
+        inbox.keys[0].pub !==
+          "0x0000000000000000000000000000000000000000000000000000000000000000";
+      if (hasKey) {
+        setFeeHint(`Recipient charges ${inbox.feeGwei} gwei.`);
+        setPlaintextMode(false);
+      } else {
+        setFeeHint(
+          `Recipient charges ${inbox.feeGwei} gwei. No published encryption key — message will be sent as PLAINTEXT (anyone can read).`,
+        );
+        setPlaintextMode(true);
+      }
     } catch (e) {
       setFeeHint(
         `Could not fetch recipient fee: ${e instanceof Error ? e.message : String(e)}`,
@@ -66,7 +82,7 @@ export function Compose() {
         feeGwei,
         onProgress: setStage,
       });
-      setResult({ txHash: r.txHash, cid: r.cid });
+      setResult({ txHash: r.txHash, cid: r.cid, encrypted: r.encrypted });
       setSubject("");
       setBody("");
     } catch (e) {
@@ -93,7 +109,11 @@ export function Compose() {
             className="mt-1 w-full border rounded px-2 py-1 font-mono text-sm"
           />
           {feeHint && (
-            <span className="text-xs text-gray-500 mt-1 block">
+            <span
+              className={`text-xs mt-1 block ${
+                plaintextMode ? "text-amber-700" : "text-gray-500"
+              }`}
+            >
               {feeHint}
             </span>
           )}
@@ -137,7 +157,7 @@ export function Compose() {
           disabled={busy}
           className="px-4 py-2 border rounded text-sm disabled:opacity-50"
         >
-          {busy ? "Sending…" : "Send"}
+          {busy ? "Sending…" : plaintextMode ? "Send (plaintext)" : "Send"}
         </button>
         {stage && (
           <span className="text-sm text-gray-600">{STAGE_LABEL[stage]}</span>
@@ -150,7 +170,9 @@ export function Compose() {
 
       {result && (
         <div className="mt-4 text-sm space-y-1">
-          <div className="text-green-700">Sent.</div>
+          <div className="text-green-700">
+            Sent {result.encrypted ? "(encrypted)" : "(plaintext)"}.
+          </div>
           <div className="break-all">
             tx: <code className="text-xs">{result.txHash}</code>
           </div>

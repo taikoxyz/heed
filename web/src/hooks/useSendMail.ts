@@ -38,6 +38,7 @@ export interface SendMailResult {
   txHash: `0x${string}`;
   cid: string;
   contentRef: `0x${string}`;
+  encrypted: boolean;
 }
 
 export function useSendMail() {
@@ -61,38 +62,10 @@ export function useSendMail() {
     const reader = createReadClient(publicClient, cfg.contractAddress);
 
     input.onProgress?.("lookup");
-    const [rcptInbox, senderInbox] = await Promise.all([
-      reader.getInbox(input.recipient),
-      reader.getInbox(sender),
-    ]);
-
+    const rcptInbox = await reader.getInbox(input.recipient);
     const rcptKey = rcptInbox.keys[0];
-    if (!rcptKey || rcptKey.pub === ZERO_BYTES32) {
-      throw new Error(
-        "recipient hasn't published an encryption key yet — they can't decrypt mail",
-      );
-    }
+    const recipientHasKey = !!rcptKey && rcptKey.pub !== ZERO_BYTES32;
 
-    input.onProgress?.("derive-key");
-    const senderHasKey =
-      senderInbox.keys[0] && senderInbox.keys[0].pub !== ZERO_BYTES32;
-    const senderKeyNonce = senderHasKey
-      ? Number(senderInbox.keys[0]!.keyNonce)
-      : 0;
-
-    let senderSk = getCachedKey(sender, senderKeyNonce);
-    if (!senderSk) {
-      const sig = await signTypedDataAsync({
-        domain: KEY_TYPED_DATA.domain(cfg.chainId, cfg.contractAddress),
-        types: KEY_TYPED_DATA.types,
-        primaryType: KEY_TYPED_DATA.primaryType,
-        message: KEY_TYPED_DATA.message(senderKeyNonce),
-      });
-      senderSk = putKey(sender, senderKeyNonce, sig);
-    }
-    const senderPub = deriveX25519Public(senderSk);
-
-    input.onProgress?.("encrypt");
     const payload: PlaintextPayload = {
       v: 1,
       kind: "mail",
@@ -105,17 +78,44 @@ export function useSendMail() {
       body: { text: input.body },
       attachments: [],
     };
-    const envelope = encryptForRecipients(encodePlaintext(payload), [
-      {
-        rcpt: input.recipient,
-        keyNonce: Number(rcptKey.keyNonce),
-        pub: hexToBytes(rcptKey.pub),
-      },
-      { rcpt: sender, keyNonce: senderKeyNonce, pub: senderPub },
-    ]);
+
+    let pinTarget: unknown;
+    if (recipientHasKey) {
+      input.onProgress?.("derive-key");
+      const senderInbox = await reader.getInbox(sender);
+      const senderHasKey =
+        senderInbox.keys[0] && senderInbox.keys[0].pub !== ZERO_BYTES32;
+      const senderKeyNonce = senderHasKey
+        ? Number(senderInbox.keys[0]!.keyNonce)
+        : 0;
+
+      let senderSk = getCachedKey(sender, senderKeyNonce);
+      if (!senderSk) {
+        const sig = await signTypedDataAsync({
+          domain: KEY_TYPED_DATA.domain(cfg.chainId, cfg.contractAddress),
+          types: KEY_TYPED_DATA.types,
+          primaryType: KEY_TYPED_DATA.primaryType,
+          message: KEY_TYPED_DATA.message(senderKeyNonce),
+        });
+        senderSk = putKey(sender, senderKeyNonce, sig);
+      }
+      const senderPub = deriveX25519Public(senderSk);
+
+      input.onProgress?.("encrypt");
+      pinTarget = encryptForRecipients(encodePlaintext(payload), [
+        {
+          rcpt: input.recipient,
+          keyNonce: Number(rcptKey!.keyNonce),
+          pub: hexToBytes(rcptKey!.pub),
+        },
+        { rcpt: sender, keyNonce: senderKeyNonce, pub: senderPub },
+      ]);
+    } else {
+      pinTarget = payload;
+    }
 
     input.onProgress?.("pin");
-    const cid = await pinJson(envelope, `heed-mail-${payload.msgId}.json`, {
+    const cid = await pinJson(pinTarget, `heed-mail-${payload.msgId}.json`, {
       jwt: cfg.pinataJwt,
     });
     const digest = cidToDigest(cid);
@@ -138,7 +138,7 @@ export function useSendMail() {
     input.onProgress?.("confirm");
     await publicClient.waitForTransactionReceipt({ hash: txHash });
 
-    return { txHash, cid, contentRef };
+    return { txHash, cid, contentRef, encrypted: recipientHasKey };
   };
 }
 

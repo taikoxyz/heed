@@ -25,11 +25,16 @@ export function useMailDecryption() {
     const cid = digestToCid(digest);
     const bytes = await fetchCid(cid, cfg.ipfsGateway);
 
-    const env = JSON.parse(
-      new TextDecoder().decode(bytes),
-    ) as EncryptedPayload;
+    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as
+      | PlaintextPayload
+      | EncryptedPayload;
+
+    if (isPlaintext(parsed)) return parsed;
+
     const me = address.toLowerCase();
-    const lockbox = env.lockboxes.find((l) => l.rcpt.toLowerCase() === me);
+    const lockbox = parsed.lockboxes.find(
+      (l) => l.rcpt.toLowerCase() === me,
+    );
     if (!lockbox) {
       throw new Error("no lockbox for this address");
     }
@@ -53,6 +58,12 @@ export function useMailDecryption() {
       sk,
     });
   };
+}
+
+function isPlaintext(
+  p: PlaintextPayload | EncryptedPayload,
+): p is PlaintextPayload {
+  return (p as PlaintextPayload).kind === "mail";
 }
 
 function hexToBytes(h: string) {

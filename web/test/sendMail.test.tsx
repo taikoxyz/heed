@@ -5,6 +5,7 @@ import {
   deriveX25519Public,
   encodePlaintext,
   encryptForRecipients,
+  type EncryptedPayload,
   type PlaintextPayload,
 } from "@heed/core";
 
@@ -60,5 +61,34 @@ describe("compose dual-lockbox invariant", () => {
     const recipients = envelope.lockboxes.map((l) => l.rcpt);
     expect(recipients).toContain(senderAddr);
     expect(recipients).toContain(rcptAddr);
+  });
+
+  it("plaintext payloads can be discriminated from encrypted by 'kind' field", () => {
+    const plaintext: PlaintextPayload = {
+      v: 1,
+      kind: "mail",
+      from: "0x1111111111111111111111111111111111111111",
+      to: ["0x2222222222222222222222222222222222222222"],
+      cc: [],
+      date: 1714000000,
+      msgId: "test-2",
+      subject: "no key",
+      body: { text: "sent in the clear" },
+      attachments: [],
+    };
+
+    const sk = deriveX25519Private(new Uint8Array(64).fill(0xcc));
+    const pub = deriveX25519Public(sk);
+    const encrypted = encryptForRecipients(encodePlaintext(plaintext), [
+      {
+        rcpt: "0x2222222222222222222222222222222222222222",
+        keyNonce: 0,
+        pub,
+      },
+    ]);
+
+    expect((plaintext as PlaintextPayload).kind).toBe("mail");
+    expect("kind" in encrypted).toBe(false);
+    expect((encrypted as EncryptedPayload).scheme).toBe(1);
   });
 });
