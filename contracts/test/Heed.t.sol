@@ -172,4 +172,58 @@ contract HeedTest is Test {
         tm.revokeMyself();
         assertEq(tm.delegateOwner(delegate), address(0));
     }
+
+    function test_sendBatch_atomic_singleSuccess() public {
+        address bob = makeAddr("bob");
+        vm.prank(bob);
+        tm.setFee(100);
+
+        IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](1);
+        mails[0] = IHeed.MailIntent({
+            recipient: bob,
+            valueGwei: 100,
+            contentRef: bytes32(uint256(0xabcd))
+        });
+
+        vm.deal(alice, 1 ether);
+        uint256 bobBefore = bob.balance;
+        uint256 aliceBefore = alice.balance;
+
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.MailSent(alice, bob, bytes32(uint256(0xabcd)), 100);
+        vm.prank(alice);
+        tm.sendBatch{value: 100 gwei}(mails, true);
+
+        assertEq(bob.balance - bobBefore, 100 gwei);
+        assertEq(aliceBefore - alice.balance, 100 gwei);
+    }
+
+    function test_sendBatch_atomic_revertsOnInsufficientValue() public {
+        address bob = makeAddr("bob");
+        vm.prank(bob); tm.setFee(100);
+
+        IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](1);
+        mails[0] = IHeed.MailIntent({recipient: bob, valueGwei: 50, contentRef: bytes32(0)});
+
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert();
+        tm.sendBatch{value: 50 gwei}(mails, true);
+    }
+
+    function test_sendBatch_delegateAttribution() public {
+        address bob = makeAddr("bob");
+        address delegate = makeAddr("delegate");
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        tm.registerDelegate{value: 0.05 ether}(delegate, bytes32(0));
+
+        IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](1);
+        mails[0] = IHeed.MailIntent({recipient: bob, valueGwei: 0, contentRef: bytes32(uint256(1))});
+
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.MailSent(alice, bob, bytes32(uint256(1)), 0); // sender == owner, not delegate
+        vm.prank(delegate);
+        tm.sendBatch{value: 0}(mails, true);
+    }
 }

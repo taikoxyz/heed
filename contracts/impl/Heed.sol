@@ -82,7 +82,40 @@ contract Heed is IHeed {
         delete delegateClient[msg.sender];
         emit DelegateRevoked(owner, msg.sender);
     }
-    function sendBatch(MailIntent[] calldata, bool) external payable { revert(); }
+    function sendBatch(MailIntent[] calldata mails, bool atomic) external payable {
+        address effectiveSender = delegateOwner[msg.sender] == address(0) ? msg.sender : delegateOwner[msg.sender];
+        uint256 spent;
+
+        for (uint256 i; i < mails.length; ++i) {
+            MailIntent calldata m = mails[i];
+            uint32 required = trusts[m.recipient][effectiveSender] ? 0 : feeGwei[m.recipient];
+
+            if (m.valueGwei < required) {
+                if (atomic) revert MailFailed(i);
+                continue;
+            }
+
+            uint256 valueWei = uint256(m.valueGwei) * 1 gwei;
+            if (spent + valueWei > msg.value) {
+                if (atomic) revert InsufficientValue(spent + valueWei, msg.value);
+                continue;
+            }
+
+            (bool ok, ) = m.recipient.call{value: valueWei}("");
+            if (!ok) {
+                if (atomic) revert MailFailed(i);
+                continue;
+            }
+
+            spent += valueWei;
+            emit MailSent(effectiveSender, m.recipient, m.contentRef, m.valueGwei);
+        }
+
+        if (msg.value > spent) {
+            (bool ok, ) = msg.sender.call{value: msg.value - spent}("");
+            require(ok, "refund-fail");
+        }
+    }
     function getInbox(address) external pure returns (InboxView memory) { revert(); }
     function getInboxes(address[] calldata) external pure returns (InboxView[] memory) { revert(); }
 }
