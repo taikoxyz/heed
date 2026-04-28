@@ -1,0 +1,11 @@
+{
+  "name": "heed-monorepo",
+  "private": true,
+  "workspaces": ["core-lib", "web"],
+  "scripts": {
+    "build:core": "npm --workspace @heed/core run build",
+    "build:web": "npm --workspace @heed/web run build",
+    "test:core": "npm --workspace @heed/core run test",
+    "test:web": "npm --workspace @heed/web run test"
+  }
+}
