@@ -17,12 +17,20 @@ contract Heed is IHeed {
     }
 
     function publishKey(uint32 keyNonce, bytes32 pub) external {
+        if (pub == bytes32(0)) revert EmptyPubKey();
         EncKey[2] storage slots = _keys[msg.sender];
         uint32 highest = slots[0].keyNonce > slots[1].keyNonce ? slots[0].keyNonce : slots[1].keyNonce;
         bool firstEverSlot = slots[0].pub == bytes32(0) && slots[1].pub == bytes32(0);
         if (!firstEverSlot && keyNonce <= highest) revert KeyNonceNotMonotonic(keyNonce, highest);
 
-        uint8 victim = slots[0].keyNonce <= slots[1].keyNonce ? 0 : 1;
+        uint8 victim;
+        if (slots[0].pub == bytes32(0)) {
+            victim = 0;
+        } else if (slots[1].pub == bytes32(0)) {
+            victim = 1;
+        } else {
+            victim = slots[0].keyNonce <= slots[1].keyNonce ? 0 : 1;
+        }
         slots[victim] = EncKey({keyNonce: keyNonce, publishedAt: uint64(block.timestamp), pub: pub});
         emit KeyPublished(msg.sender, keyNonce, pub);
     }

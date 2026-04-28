@@ -47,4 +47,45 @@ contract HeedTest is Test {
         tm.publishKey(3, bytes32(uint256(2)));
         vm.stopPrank();
     }
+
+    function test_publishKey_rejectsZeroPub() public {
+        vm.prank(alice);
+        vm.expectRevert(IHeed.EmptyPubKey.selector);
+        tm.publishKey(0, bytes32(0));
+    }
+
+    function test_publishKey_firstNonceZeroThenOne_keepsBoth() public {
+        bytes32 pubA = bytes32(uint256(0xAA));
+        bytes32 pubB = bytes32(uint256(0xBB));
+        vm.startPrank(alice);
+        tm.publishKey(0, pubA);
+        tm.publishKey(1, pubB);
+        vm.stopPrank();
+
+        IHeed.EncKey[2] memory keys = tm.getKeys(alice);
+        // Both pubs must survive — the slot order is unspecified, so check by content.
+        bool foundA = keys[0].pub == pubA || keys[1].pub == pubA;
+        bool foundB = keys[0].pub == pubB || keys[1].pub == pubB;
+        assertTrue(foundA, "pubA missing - slot rotation lost it");
+        assertTrue(foundB, "pubB missing");
+    }
+
+    function test_publishKey_thirdPublishEvictsOldestFromTwoPopulatedSlots() public {
+        bytes32 pubA = bytes32(uint256(0xAA));
+        bytes32 pubB = bytes32(uint256(0xBB));
+        bytes32 pubC = bytes32(uint256(0xCC));
+        vm.startPrank(alice);
+        tm.publishKey(1, pubA);
+        tm.publishKey(2, pubB);
+        tm.publishKey(3, pubC);
+        vm.stopPrank();
+
+        IHeed.EncKey[2] memory keys = tm.getKeys(alice);
+        bool foundA = keys[0].pub == pubA || keys[1].pub == pubA;
+        bool foundB = keys[0].pub == pubB || keys[1].pub == pubB;
+        bool foundC = keys[0].pub == pubC || keys[1].pub == pubC;
+        assertFalse(foundA, "pubA should have been evicted (oldest of three)");
+        assertTrue(foundB, "pubB missing");
+        assertTrue(foundC, "pubC missing");
+    }
 }

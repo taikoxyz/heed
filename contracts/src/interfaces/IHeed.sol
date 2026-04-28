@@ -36,6 +36,7 @@ interface IHeed {
     error NotADelegate();
     error InsufficientValue(uint256 sumOfValues, uint256 msgValue);
     error MailFailed(uint256 index);
+    error EmptyPubKey();
 
     function MAX_FEE_GWEI() external view returns (uint32);
     function publishKey(uint32 keyNonce, bytes32 pub) external;
