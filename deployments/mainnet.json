@@ -22,9 +22,9 @@
       "url": "https://blockscout.mainnet.taiko.xyz/address/0x08f32278B2CFD962444ae9541122eD84cc745678"
     },
     "taikoscan": {
-      "status": "pending",
-      "note": "Taikoscan V1 endpoint deprecated; provided API key not yet valid for Etherscan V2 multichain. Re-verify after obtaining an Etherscan V2 key.",
-      "v2VerifyCmd": "FOUNDRY_PROFILE=layer2 forge verify-contract 0x08f32278B2CFD962444ae9541122eD84cc745678 impl/Heed.sol:Heed --watch --verifier-url \"https://api.etherscan.io/v2/api?chainid=167000\" --etherscan-api-key $ETHERSCAN_V2_API_KEY --constructor-args 0x0000000000000000000000000000000000000000000000000000000000989680 --compiler-version 0.8.27 --num-of-optimizations 1000000 --evm-version shanghai"
+      "status": "verified",
+      "via": "Etherscan V2 multichain (chainid=167000)",
+      "url": "https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678"
     }
   },
   "explorers": {
