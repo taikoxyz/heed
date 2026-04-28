@@ -10,6 +10,8 @@ export function digestToCid(digest: Uint8Array): string {
 
 export function cidToDigest(cidStr: string): Uint8Array {
   const cid = CID.parse(cidStr);
-  if (cid.version !== 1 || cid.code !== raw.code) throw new Error("unexpected CID shape");
+  if (cid.version !== 1 || cid.code !== raw.code || cid.multihash.code !== sha256.code) {
+    throw new Error("unexpected CID shape");
+  }
   return cid.multihash.digest;
 }
