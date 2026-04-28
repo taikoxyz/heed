@@ -88,4 +88,24 @@ contract HeedTest is Test {
         assertTrue(foundB, "pubB missing");
         assertTrue(foundC, "pubC missing");
     }
+
+    function test_setFee_storesAndEmits() public {
+        vm.expectEmit(true, false, false, true, address(tm));
+        emit IHeed.FeeUpdated(alice, 12345);
+        vm.prank(alice);
+        tm.setFee(12345);
+        assertEq(tm.feeGwei(alice), 12345);
+    }
+
+    function test_setFee_revertsAboveCap() public {
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IHeed.FeeAboveCap.selector, 10_000_001, 10_000_000));
+        tm.setFee(10_000_001);
+    }
+
+    function test_setFee_zeroIsAllowed() public {
+        vm.prank(alice);
+        tm.setFee(0);
+        assertEq(tm.feeGwei(alice), 0);
+    }
 }

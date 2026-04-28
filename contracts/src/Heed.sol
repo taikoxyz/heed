@@ -39,7 +39,11 @@ contract Heed is IHeed {
         return _keys[owner];
     }
 
-    function setFee(uint32) external pure { revert(); }
+    function setFee(uint32 valueGwei) external {
+        if (valueGwei > MAX_FEE_GWEI) revert FeeAboveCap(valueGwei, MAX_FEE_GWEI);
+        feeGwei[msg.sender] = valueGwei;
+        emit FeeUpdated(msg.sender, valueGwei);
+    }
     function trust(address[] calldata) external pure { revert(); }
     function untrust(address[] calldata) external pure { revert(); }
     function registerDelegate(address, bytes32) external payable { revert(); }
