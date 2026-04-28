@@ -44,4 +44,24 @@ describe("pin", () => {
     const headers = (init as RequestInit).headers as Record<string, string>;
     expect(headers["Authorization"]).toBe("Bearer secret-token");
   });
+
+  it("pins exactly the bytes passed, not the underlying buffer", async () => {
+    const big = new Uint8Array(100);
+    big.fill(0xff);
+    big.set([1, 2, 3, 4], 50);
+    const slice = big.subarray(50, 54);
+
+    let capturedBlob: Blob | undefined;
+    vi.stubGlobal("fetch", vi.fn(async (_url: string, init: RequestInit) => {
+      const fd = init.body as FormData;
+      capturedBlob = fd.get("file") as Blob;
+      return new Response(JSON.stringify({ IpfsHash: "Qm123" }), { status: 200 });
+    }));
+
+    await pin(slice, "x", { jwt: "j" });
+    expect(capturedBlob).toBeDefined();
+    expect(capturedBlob!.size).toBe(4);
+    const arr = new Uint8Array(await capturedBlob!.arrayBuffer());
+    expect(Array.from(arr)).toEqual([1, 2, 3, 4]);
+  });
 });
