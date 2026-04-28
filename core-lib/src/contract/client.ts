@@ -28,7 +28,7 @@ export function createReadClient(client: PublicClient, address: Address) {
 
 export function createWriteClient(wallet: WalletClient, address: Address) {
   const write = (functionName: string, args: unknown[], value = 0n) =>
-    wallet.writeContract({ address, abi: HEED_ABI, functionName, args, value, chain: wallet.chain, account: wallet.account! });
+    wallet.writeContract({ address, abi: HEED_ABI, functionName: functionName as never, args: args as never, value: value as never, chain: wallet.chain, account: wallet.account! });
 
   return {
     publishKey: (keyNonce: number, pub: Hex) =>

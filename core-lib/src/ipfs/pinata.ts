@@ -5,7 +5,7 @@ export interface PinataConfig { jwt: string; gateway?: string }
 
 export async function pin(bytes: Uint8Array, name: string, cfg: PinataConfig): Promise<string> {
   const fd = new FormData();
-  fd.append("file", new Blob([bytes]), name);
+  fd.append("file", new Blob([bytes.buffer as ArrayBuffer]), name);
   fd.append("pinataMetadata", JSON.stringify({ name }));
   const r = await fetch("https://api.pinata.cloud/pinning/pinFileToIPFS", {
     method: "POST",
