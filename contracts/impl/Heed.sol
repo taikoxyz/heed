@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.27;
 
-import {IHeed} from "./interfaces/IHeed.sol";
+import {IHeed} from "iface/IHeed.sol";
 
 contract Heed is IHeed {
     uint32 public immutable MAX_FEE_GWEI;

@@ -2,8 +2,8 @@
 pragma solidity 0.8.27;
 
 import {Test} from "forge-std/Test.sol";
-import {Heed} from "src/Heed.sol";
-import {IHeed} from "src/interfaces/IHeed.sol";
+import {Heed} from "impl/Heed.sol";
+import {IHeed} from "iface/IHeed.sol";
 
 contract HeedTest is Test {
     Heed tm;
