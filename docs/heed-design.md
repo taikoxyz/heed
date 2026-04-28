@@ -1,4 +1,4 @@
-# Postage — Design Spec
+# Heed — Design Spec
 
 **Date:** 2026-04-28
 **Status:** Draft for review
@@ -7,7 +7,7 @@
 
 ## Context
 
-Email on Web2 is a centralized, opt-in, spam-saturated medium. EtherMail and similar projects have shown there is appetite for wallet-native messaging, but their actual on-wire protocols aren't openly specified. Postage aims to be a *trustless, address-native messaging primitive* on Taiko: any EVM address can receive mail without opt-in, recipients price their attention via an anti-spam fee, encryption is optional but supported by default when a recipient has published a key, and clients run locally to avoid trusting any hosted service with delegate keys.
+Email on Web2 is a centralized, opt-in, spam-saturated medium. EtherMail and similar projects have shown there is appetite for wallet-native messaging, but their actual on-wire protocols aren't openly specified. Heed aims to be a *trustless, address-native messaging primitive* on Taiko: any EVM address can receive mail without opt-in, recipients price their attention via an anti-spam fee, encryption is optional but supported by default when a recipient has published a key, and clients run locally to avoid trusting any hosted service with delegate keys.
 
 The intended outcome of this spec is a single, immutable smart contract deployed on Taiko mainnet, an IPFS payload schema for mail content, a native macOS reference client, and a reference indexer.
 
@@ -36,12 +36,12 @@ The intended outcome of this spec is a single, immutable smart contract deployed
 
 ## Positioning & Strategic Wedge
 
-Postage is a **protocol primitive**, not a consumer mail product. The closest reference, EtherMail, is a hosted SaaS with a polished web/mobile UX, ad-revenue token economy, and Web2 bridge — Postage does not compete on those axes and will lose if framed that way. Instead, Postage differentiates as **open, censorship-resistant, programmable rails for address-native messaging where attention is priced in ETH that flows directly to the recipient**.
+Heed is a **protocol primitive**, not a consumer mail product. The closest reference, EtherMail, is a hosted SaaS with a polished web/mobile UX, ad-revenue token economy, and Web2 bridge — Heed does not compete on those axes and will lose if framed that way. Instead, Heed differentiates as **open, censorship-resistant, programmable rails for address-native messaging where attention is priced in ETH that flows directly to the recipient**.
 
 Two priority use cases shape v1 design and sequencing:
 
-1. **AI agents and bots.** Agents own wallets, have no humans to opt-in, and benefit from a contract-callable messaging surface. The library-first architecture (`postage-core` TS) is the deliverable they need; a native UI is irrelevant to them.
-2. **Dapp / DAO notifications.** Protocols want to message wallet addresses programmatically — DEX position warnings, DAO announcements, NFT-holder updates. Today they push to Twitter/Discord; with Postage, it's a contract call. The recipient earns the anti-spam fee, making the value flow legible end-to-end.
+1. **AI agents and bots.** Agents own wallets, have no humans to opt-in, and benefit from a contract-callable messaging surface. The library-first architecture (`heed-core` TS) is the deliverable they need; a native UI is irrelevant to them.
+2. **Dapp / DAO notifications.** Protocols want to message wallet addresses programmatically — DEX position warnings, DAO announcements, NFT-holder updates. Today they push to Twitter/Discord; with Heed, it's a contract call. The recipient earns the anti-spam fee, making the value flow legible end-to-end.
 
 The recipient-earns-ETH-directly model is the protocol's real moat. The reference client UX should make this visible (e.g., "earned 0.04 ETH this month"), not bury it.
 
@@ -52,7 +52,7 @@ The recipient-earns-ETH-directly model is the protocol's real moat. The referenc
 ```
                  +-----------------------+         +----------------+
                  | Taiko mainnet         | <-----> | Reference      |
-   web reader -->| Postage.sol         |  logs   | indexer        |
+   web reader -->| Heed.sol         |  logs   | indexer        |
    macOS app --->| (immutable)           |         | (Ponder + PG)  |
    AI agent  --->+-----------------------+         +----------------+
                                 ^                      ^
@@ -69,14 +69,14 @@ Five artifacts, sequenced into two delivery phases:
 
 **v1a — protocol-first MVP (the wedge):**
 
-1. **`Postage.sol`** — single contract, immutable, on Taiko mainnet.
-2. **`postage-core`** — TypeScript library (crypto, encoding, contract bindings, IPFS, sync). The deliverable for AI agents, dapp integrators, and any future client.
+1. **`Heed.sol`** — single contract, immutable, on Taiko mainnet.
+2. **`heed-core`** — TypeScript library (crypto, encoding, contract bindings, IPFS, sync). The deliverable for AI agents, dapp integrators, and any future client.
 3. **Reference indexer** — Ponder service, optional; clients fall back to RPC.
-4. **`postage-web`** — hosted **read-only web reader**. Wallet connect, in-browser key derivation (no persistence), inbox rendering, mail decryption. No compose, no delegate. Lets any wallet see "you have a Postage inbox" with zero install friction; perfect for showcasing dapp/agent traffic and validating demand.
+4. **`heed-web`** — hosted **read-only web reader**. Wallet connect, in-browser key derivation (no persistence), inbox rendering, mail decryption. No compose, no delegate. Lets any wallet see "you have a Heed inbox" with zero install friction; perfect for showcasing dapp/agent traffic and validating demand.
 
 **v1b — power-user native client (after v1a demand signal):**
 
-5. **`Postage.app`** — native macOS app (Tauri 2 + SwiftUI), depends on `postage-core`. Adds compose, delegate-key custody in macOS Keychain, batch send UX, frictionless ongoing send.
+5. **`Heed.app`** — native macOS app (Tauri 2 + SwiftUI), depends on `heed-core`. Adds compose, delegate-key custody in macOS Keychain, batch send UX, frictionless ongoing send.
 
 The v1a/v1b split keeps time-to-protocol low, lets us measure adoption from the wedge users (agents + dapps) before investing in native UI, and de-risks the macOS effort by validating that demand exists first.
 
@@ -188,7 +188,7 @@ constructor(uint32 maxFeeGwei) {
 EIP-712 typed-data hash:
 
 ```
-domain  = { name: "Postage", version: "1", chainId: <Taiko mainnet>, verifyingContract: <Postage.sol address> }
+domain  = { name: "Heed", version: "1", chainId: <Taiko mainnet>, verifyingContract: <Heed.sol address> }
 types   = { Key: [{ name: "keyNonce", type: "uint32" }] }
 message = { keyNonce: <n> }
 ```
@@ -197,7 +197,7 @@ message = { keyNonce: <n> }
 - `seed = sha256(signature)`
 - `privateKey_x25519 = clampScalar(seed[0..32])`  (RFC 7748 §5)
 - `publicKey = X25519.scalarMultBase(privateKey_x25519)` (32 bytes — fits `bytes32`)
-- Publish: `Postage.publishKey(keyNonce, publicKey)`
+- Publish: `Heed.publishKey(keyNonce, publicKey)`
 
 The domain separator binds the derivation to a specific chain + contract — replay-safe across chains.
 
@@ -209,7 +209,7 @@ For each recipient of a logical mail:
 
 1. Generate a fresh ephemeral x25519 keypair `(ephSk, ephPub)`.
 2. `shared = X25519(ephSk, recipientPub)`.
-3. `wrapKey = HKDF-SHA256(salt = ephPub || recipientPub, ikm = shared, info = "postage.lockbox.v1")`.
+3. `wrapKey = HKDF-SHA256(salt = ephPub || recipientPub, ikm = shared, info = "heed.lockbox.v1")`.
 4. `wrappedContentKey = XChaCha20-Poly1305-encrypt(wrapKey, nonce_kx, contentKey)`.
 5. Emit one lockbox entry `{ rcpt, keyNonce, wrapped: ephPub || nonce_kx || wrappedContentKey }`.
 
@@ -272,7 +272,7 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 
 ### Direct send
 
-1. Client calls `Postage.getInbox(recipient)` → `(feeGwei, keys)`.
+1. Client calls `Heed.getInbox(recipient)` → `(feeGwei, keys)`.
 2. Client builds the payload, encrypts via lockbox if `keys[newest].pub != 0`, else plaintext.
 3. Client pins payload to Pinata, gets `contentRef`.
 4. The user's wallet signs and broadcasts `sendBatch([{ recipient, valueGwei, contentRef }], atomic = true)` with `msg.value = valueGwei * 1 gwei`.
@@ -299,27 +299,27 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 
 ## Reference Clients
 
-Two reference clients ship, sequenced as v1a then v1b. Both consume the same `postage-core` TypeScript library — no duplicated crypto or protocol code.
+Two reference clients ship, sequenced as v1a then v1b. Both consume the same `heed-core` TypeScript library — no duplicated crypto or protocol code.
 
-### v1a — `postage-web` (read-only web reader)
+### v1a — `heed-web` (read-only web reader)
 
-**Goal:** zero-install proof-of-protocol. Any wallet sees its Postage inbox in a browser, including encrypted mail, without trusting a server with secrets.
+**Goal:** zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browser, including encrypted mail, without trusting a server with secrets.
 
 **Stack**
 
 - React + Vite, served as static assets. No backend (queries RPC / indexer directly from the browser).
-- **`postage-core`** for all protocol logic.
+- **`heed-core`** for all protocol logic.
 - Wallet connect via WalletConnect / injected (Frame, Rabby, MetaMask).
 - Encrypted mail: when the user wants to decrypt, the wallet signs the EIP-712 typed data (one signature per `keyNonce`); the derived x25519 private key lives in browser memory only — never persisted, never sent off-machine.
 - No compose. No delegate. Send happens in v1b.
 
 **Distribution**
 
-- Hosted at a canonical URL (e.g., `read.postage.xyz`).
+- Hosted at a canonical URL (e.g., `read.heed.xyz`).
 - Static bundle additionally pinned to IPFS for users who want to verify the deployed code or self-serve.
 - Strict CSP, subresource integrity, reproducible build.
 
-### v1b — `Postage.app` (native macOS, compose + delegates)
+### v1b — `Heed.app` (native macOS, compose + delegates)
 
 **Goal:** frictionless inbox for power users — compose, batch send, delegate-key custody, no wallet popup per send.
 
@@ -327,7 +327,7 @@ Two reference clients ship, sequenced as v1a then v1b. Both consume the same `po
 
 - **Tauri 2** wrapper, native macOS bundle.
 - **SwiftUI** views for the main surfaces (inbox, compose, settings, key/delegate management).
-- **`postage-core`** (TypeScript): same library as the web reader.
+- **`heed-core`** (TypeScript): same library as the web reader.
 - **macOS Keychain** (via the Tauri Keychain plugin) for the delegate private key — encrypted at rest, accessed via Touch ID / system password gate.
 
 ### Configuration (per-install, persisted)
@@ -392,14 +392,14 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
    - Tests for delegate dual-revocation, key rotation slot logic, fee cap enforcement.
 3. **Independent audit.** Required before mainnet deploy — skipping testnet means no public shakedown.
 4. **Mainnet deploy.** Single deployment; record the address in `deployments/mainnet.json`. Verify on Taikoscan.
-5. **`postage-core` library publish** to npm.
+5. **`heed-core` library publish** to npm.
 6. **Reference indexer** ships as a Docker image; the reference hosted instance is optional.
-7. **`postage-web` first release** — static deploy + IPFS-pinned bundle. Public URL.
+7. **`heed-web` first release** — static deploy + IPFS-pinned bundle. Public URL.
 8. **Demand signal window (≈ 60 days).** Track agent + dapp integrations, web-reader connects, message volume.
 
 ### v1b — native client (gated on v1a demand)
 
-9. **`Postage.app` first release** via GitHub Releases + Sparkle update channel. Re-uses already-deployed contract and shipped `postage-core`.
+9. **`Heed.app` first release** via GitHub Releases + Sparkle update channel. Re-uses already-deployed contract and shipped `heed-core`.
 
 ---
 
@@ -407,7 +407,7 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 
 Going straight to mainnet means we lose the public testnet rehearsal. Compensating measures:
 
-- **Foundry test coverage** ≥ 95% line / 100% branch on `Postage.sol`, including:
+- **Foundry test coverage** ≥ 95% line / 100% branch on `Heed.sol`, including:
   - Atomic vs. best-effort branch correctness with mixed success/failure.
   - Refund accounting under all paths.
   - Delegate dual-revocation.
@@ -415,7 +415,7 @@ Going straight to mainnet means we lose the public testnet rehearsal. Compensati
   - Fee cap enforcement at `setFee`.
 - **Invariant tests** (Foundry): "no state changes from `sendBatch`" assertion.
 - **Fork tests** against the Taiko mainnet RPC (gas profiling + integration sanity).
-- **End-to-end client test:** scripted `Postage.app` build sends/receives encrypted mail through a local Anvil chain.
+- **End-to-end client test:** scripted `Heed.app` build sends/receives encrypted mail through a local Anvil chain.
 - **Independent third-party audit** before mainnet deploy.
 - **Bug bounty** (Immunefi or similar) for the first six months post-launch.
 
@@ -461,8 +461,8 @@ End-to-end checks at completion of implementation:
 1. Foundry tests pass: `forge test -vvv` with coverage at the thresholds above.
 2. Static analysis: `slither .` clean (or documented exceptions).
 3. Mainnet fork test: send a mail, decrypt via lockbox, confirm event emitted with correct fields.
-4. `postage-core` Vitest suite green for crypto round-trips, payload encode/decode, lockbox unwrap with rotated keys.
-5. `Postage.app` smoke flow on Anvil: register delegate → send encrypted batch → receive on a second wallet → decrypt → reply with priority `medium` (2× fee).
+4. `heed-core` Vitest suite green for crypto round-trips, payload encode/decode, lockbox unwrap with rotated keys.
+5. `Heed.app` smoke flow on Anvil: register delegate → send encrypted batch → receive on a second wallet → decrypt → reply with priority `medium` (2× fee).
 6. Audit report addressed; all High/Critical findings fixed before deploy.
 
 ---
@@ -470,8 +470,8 @@ End-to-end checks at completion of implementation:
 ## Critical files (to be created — greenfield)
 
 **v1a:**
-- `contracts/Postage.sol`
-- `contracts/test/Postage.t.sol`
+- `contracts/Heed.sol`
+- `contracts/test/Heed.t.sol`
 - `contracts/script/Deploy.s.sol`
 - `core/src/{crypto,payload,contract,ipfs,source}/*` — TypeScript core
 - `core/test/*` — Vitest
