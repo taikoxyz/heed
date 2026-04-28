@@ -30,30 +30,55 @@ The intended outcome of this spec is a single, immutable smart contract deployed
 - Read receipts, delivery confirmations, on-chain threading state.
 - Hosted inbox or centralized indexer as a hard dependency.
 - Hoodi testnet rollout (deploying directly to mainnet; rigor moves into testing/audit).
+- Web2 (Gmail/Yahoo) interop — pure protocol, no SMTP bridge.
+
+---
+
+## Positioning & Strategic Wedge
+
+Taiko Mail is a **protocol primitive**, not a consumer mail product. The closest reference, EtherMail, is a hosted SaaS with a polished web/mobile UX, ad-revenue token economy, and Web2 bridge — Taiko Mail does not compete on those axes and will lose if framed that way. Instead, Taiko Mail differentiates as **open, censorship-resistant, programmable rails for address-native messaging where attention is priced in ETH that flows directly to the recipient**.
+
+Two priority use cases shape v1 design and sequencing:
+
+1. **AI agents and bots.** Agents own wallets, have no humans to opt-in, and benefit from a contract-callable messaging surface. The library-first architecture (`taikomail-core` TS) is the deliverable they need; a native UI is irrelevant to them.
+2. **Dapp / DAO notifications.** Protocols want to message wallet addresses programmatically — DEX position warnings, DAO announcements, NFT-holder updates. Today they push to Twitter/Discord; with Taiko Mail, it's a contract call. The recipient earns the anti-spam fee, making the value flow legible end-to-end.
+
+The recipient-earns-ETH-directly model is the protocol's real moat. The reference client UX should make this visible (e.g., "earned 0.04 ETH this month"), not bury it.
 
 ---
 
 ## High-Level Architecture
 
 ```
-+------------------+         +-----------------------+         +----------------+
-|  TaikoMail.app   | <-----> | Taiko mainnet         | <-----> | Reference      |
-|  (Tauri 2 +      |  RPC    | TaikoMail.sol         |  logs   | indexer        |
-|  SwiftUI shell + |         | (immutable)           |         | (Ponder + PG)  |
-|  TS core)        |         +-----------------------+         +----------------+
-|                  |                                                ^
-|                  |         +-----------------------+              |
-|                  | <-----> | IPFS (Pinata / any)   | <------------+
-+------------------+ HTTP    | mail payload          |  optional gateway
-                             +-----------------------+
+                 +-----------------------+         +----------------+
+                 | Taiko mainnet         | <-----> | Reference      |
+   web reader -->| TaikoMail.sol         |  logs   | indexer        |
+   macOS app --->| (immutable)           |         | (Ponder + PG)  |
+   AI agent  --->+-----------------------+         +----------------+
+                                ^                      ^
+                                |                      |
+                                +----------------------+
+                                |
+                 +-----------------------+
+                 | IPFS (Pinata / any)   |
+                 | mail payload          |
+                 +-----------------------+
 ```
 
-Four artifacts:
+Five artifacts, sequenced into two delivery phases:
+
+**v1a — protocol-first MVP (the wedge):**
 
 1. **`TaikoMail.sol`** — single contract, immutable, on Taiko mainnet.
-2. **`taikomail-core`** — TypeScript library (crypto, encoding, contract bindings, IPFS, sync).
-3. **`TaikoMail.app`** — native macOS app (Tauri 2 + SwiftUI), depends on `taikomail-core`.
-4. **Reference indexer** — Ponder service, optional; clients fall back to RPC.
+2. **`taikomail-core`** — TypeScript library (crypto, encoding, contract bindings, IPFS, sync). The deliverable for AI agents, dapp integrators, and any future client.
+3. **Reference indexer** — Ponder service, optional; clients fall back to RPC.
+4. **`taikomail-web`** — hosted **read-only web reader**. Wallet connect, in-browser key derivation (no persistence), inbox rendering, mail decryption. No compose, no delegate. Lets any wallet see "you have a Taiko Mail inbox" with zero install friction; perfect for showcasing dapp/agent traffic and validating demand.
+
+**v1b — power-user native client (after v1a demand signal):**
+
+5. **`TaikoMail.app`** — native macOS app (Tauri 2 + SwiftUI), depends on `taikomail-core`. Adds compose, delegate-key custody in macOS Keychain, batch send UX, frictionless ongoing send.
+
+The v1a/v1b split keeps time-to-protocol low, lets us measure adoption from the wedge users (agents + dapps) before investing in native UI, and de-risks the macOS effort by validating that demand exists first.
 
 ---
 
@@ -272,21 +297,45 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 
 ---
 
-## Reference Client (TaikoMail.app)
+## Reference Clients
 
-### Stack
+Two reference clients ship, sequenced as v1a then v1b. Both consume the same `taikomail-core` TypeScript library — no duplicated crypto or protocol code.
+
+### v1a — `taikomail-web` (read-only web reader)
+
+**Goal:** zero-install proof-of-protocol. Any wallet sees its Taiko Mail inbox in a browser, including encrypted mail, without trusting a server with secrets.
+
+**Stack**
+
+- React + Vite, served as static assets. No backend (queries RPC / indexer directly from the browser).
+- **`taikomail-core`** for all protocol logic.
+- Wallet connect via WalletConnect / injected (Frame, Rabby, MetaMask).
+- Encrypted mail: when the user wants to decrypt, the wallet signs the EIP-712 typed data (one signature per `keyNonce`); the derived x25519 private key lives in browser memory only — never persisted, never sent off-machine.
+- No compose. No delegate. Send happens in v1b.
+
+**Distribution**
+
+- Hosted at a canonical URL (e.g., `read.taikomail.xyz`).
+- Static bundle additionally pinned to IPFS for users who want to verify the deployed code or self-serve.
+- Strict CSP, subresource integrity, reproducible build.
+
+### v1b — `TaikoMail.app` (native macOS, compose + delegates)
+
+**Goal:** frictionless inbox for power users — compose, batch send, delegate-key custody, no wallet popup per send.
+
+**Stack**
 
 - **Tauri 2** wrapper, native macOS bundle.
 - **SwiftUI** views for the main surfaces (inbox, compose, settings, key/delegate management).
-- **`taikomail-core`** (TypeScript): all crypto, contract bindings (`viem`), IPFS client, payload encoders, MailSource interface.
+- **`taikomail-core`** (TypeScript): same library as the web reader.
 - **macOS Keychain** (via the Tauri Keychain plugin) for the delegate private key — encrypted at rest, accessed via Touch ID / system password gate.
 
 ### Configuration (per-install, persisted)
 
 - RPC endpoint (default: Taiko mainnet public RPC).
 - IPFS gateway URL (default: Pinata gateway).
-- Pinata API JWT (user-provided; never embedded in build).
-- Max anti-spam fee willing to send (default: `MAX_FEE_GWEI`).
+- Pinata API JWT (user-provided; never embedded in build) — v1b only; v1a is read-only.
+- Max anti-spam fee willing to send (default: `MAX_FEE_GWEI`) — v1b only.
 - Indexer endpoint (optional).
 
 ### MailSource interface
@@ -334,6 +383,8 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 
 ## Deployment Plan
 
+### v1a — protocol + read-only reader
+
 1. **Foundry setup.** Repo skeleton with `forge` + `viem`. Lock toolchain versions.
 2. **Contract development & test.**
    - Unit tests for every function and revert path.
@@ -342,8 +393,13 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 3. **Independent audit.** Required before mainnet deploy — skipping testnet means no public shakedown.
 4. **Mainnet deploy.** Single deployment; record the address in `deployments/mainnet.json`. Verify on Taikoscan.
 5. **`taikomail-core` library publish** to npm.
-6. **`TaikoMail.app` first release** via GitHub Releases + Sparkle update channel.
-7. **Reference indexer** ships as a Docker image; the reference hosted instance is optional.
+6. **Reference indexer** ships as a Docker image; the reference hosted instance is optional.
+7. **`taikomail-web` first release** — static deploy + IPFS-pinned bundle. Public URL.
+8. **Demand signal window (≈ 60 days).** Track agent + dapp integrations, web-reader connects, message volume.
+
+### v1b — native client (gated on v1a demand)
+
+9. **`TaikoMail.app` first release** via GitHub Releases + Sparkle update channel. Re-uses already-deployed contract and shipped `taikomail-core`.
 
 ---
 
@@ -413,11 +469,15 @@ End-to-end checks at completion of implementation:
 
 ## Critical files (to be created — greenfield)
 
+**v1a:**
 - `contracts/TaikoMail.sol`
 - `contracts/test/TaikoMail.t.sol`
 - `contracts/script/Deploy.s.sol`
 - `core/src/{crypto,payload,contract,ipfs,source}/*` — TypeScript core
 - `core/test/*` — Vitest
-- `app/{src-tauri,src,swift}/*` — Tauri shell + SwiftUI views
 - `indexer/{ponder.config.ts,schema.graphql,src/*}`
+- `web/src/*` — React + Vite read-only reader
 - `deployments/mainnet.json`
+
+**v1b:**
+- `app/{src-tauri,src,swift}/*` — Tauri shell + SwiftUI views
