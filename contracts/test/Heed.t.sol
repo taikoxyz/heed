@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Test} from "forge-std/Test.sol";
 import {Heed} from "impl/Heed.sol";
 import {IHeed} from "iface/IHeed.sol";
+import {Reverter} from "./utils/Reverter.sol";
 
 contract HeedTest is Test {
     Heed tm;
@@ -209,6 +210,38 @@ contract HeedTest is Test {
         vm.prank(alice);
         vm.expectRevert();
         tm.sendBatch{value: 50 gwei}(mails, true);
+    }
+
+    function test_sendBatch_bestEffort_skipsAndRefunds() public {
+        address bob = makeAddr("bob");
+        address carol = makeAddr("carol");
+        Reverter reverter = new Reverter();
+        vm.prank(bob);   tm.setFee(100);
+        vm.prank(carol); tm.setFee(50);
+
+        IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](3);
+        mails[0] = IHeed.MailIntent({recipient: bob, valueGwei: 100, contentRef: bytes32(uint256(1))});
+        mails[1] = IHeed.MailIntent({recipient: address(reverter), valueGwei: 0, contentRef: bytes32(uint256(2))});
+        mails[2] = IHeed.MailIntent({recipient: carol, valueGwei: 50, contentRef: bytes32(uint256(3))});
+
+        vm.deal(alice, 1 ether);
+        uint256 totalAttached = 200 gwei;
+        vm.prank(alice);
+        tm.sendBatch{value: totalAttached}(mails, false);
+
+        assertEq(bob.balance, 100 gwei);
+        assertEq(carol.balance, 50 gwei);
+        assertEq(alice.balance, 1 ether - 150 gwei);
+    }
+
+    function test_sendBatch_atomic_revertsOnReverter() public {
+        Reverter reverter = new Reverter();
+        IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](1);
+        mails[0] = IHeed.MailIntent({recipient: address(reverter), valueGwei: 100, contentRef: bytes32(0)});
+        vm.deal(alice, 1 ether);
+        vm.prank(alice);
+        vm.expectRevert(abi.encodeWithSelector(IHeed.MailFailed.selector, 0));
+        tm.sendBatch{value: 100 gwei}(mails, true);
     }
 
     function test_sendBatch_delegateAttribution() public {
