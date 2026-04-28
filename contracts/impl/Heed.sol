@@ -116,6 +116,12 @@ contract Heed is IHeed {
             require(ok, "refund-fail");
         }
     }
-    function getInbox(address) external pure returns (InboxView memory) { revert(); }
-    function getInboxes(address[] calldata) external pure returns (InboxView[] memory) { revert(); }
+    function getInbox(address addr) public view returns (InboxView memory) {
+        return InboxView({feeGwei: feeGwei[addr], keys: _keys[addr]});
+    }
+
+    function getInboxes(address[] calldata addrs) external view returns (InboxView[] memory out) {
+        out = new InboxView[](addrs.length);
+        for (uint256 i; i < addrs.length; ++i) out[i] = getInbox(addrs[i]);
+    }
 }

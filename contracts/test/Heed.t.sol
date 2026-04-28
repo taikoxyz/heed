@@ -259,4 +259,24 @@ contract HeedTest is Test {
         vm.prank(delegate);
         tm.sendBatch{value: 0}(mails, true);
     }
+
+    function test_getInbox_returnsFeeAndKeys() public {
+        bytes32 pub0 = bytes32(uint256(0x42));
+        vm.startPrank(alice);
+        tm.publishKey(0, pub0);
+        tm.setFee(7);
+        vm.stopPrank();
+
+        IHeed.InboxView memory v = tm.getInbox(alice);
+        assertEq(v.feeGwei, 7);
+        assertEq(v.keys[0].pub, pub0);
+    }
+
+    function test_getInboxes_batched() public {
+        address bob = makeAddr("bob");
+        address[] memory list = new address[](2);
+        list[0] = alice; list[1] = bob;
+        IHeed.InboxView[] memory vs = tm.getInboxes(list);
+        assertEq(vs.length, 2);
+    }
 }
