@@ -57,9 +57,31 @@ contract Heed is IHeed {
             emit Trusted(msg.sender, senders[i], false);
         }
     }
-    function registerDelegate(address, bytes32) external payable { revert(); }
-    function revokeDelegate(address) external pure { revert(); }
-    function revokeMyself() external pure { revert(); }
+    function registerDelegate(address delegate, bytes32 clientId) external payable {
+        delegateOwner[delegate] = msg.sender;
+        delegateClient[delegate] = clientId;
+        emit DelegateRegistered(msg.sender, delegate, clientId);
+        if (msg.value > 0) {
+            (bool ok, ) = delegate.call{value: msg.value}("");
+            require(ok, "fund-fail");
+        }
+    }
+
+    function revokeDelegate(address delegate) external {
+        require(delegateOwner[delegate] == msg.sender, "not-owner");
+        address owner = msg.sender;
+        delete delegateOwner[delegate];
+        delete delegateClient[delegate];
+        emit DelegateRevoked(owner, delegate);
+    }
+
+    function revokeMyself() external {
+        address owner = delegateOwner[msg.sender];
+        if (owner == address(0)) revert NotADelegate();
+        delete delegateOwner[msg.sender];
+        delete delegateClient[msg.sender];
+        emit DelegateRevoked(owner, msg.sender);
+    }
     function sendBatch(MailIntent[] calldata, bool) external payable { revert(); }
     function getInbox(address) external pure returns (InboxView memory) { revert(); }
     function getInboxes(address[] calldata) external pure returns (InboxView[] memory) { revert(); }

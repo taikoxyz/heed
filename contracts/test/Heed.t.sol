@@ -137,4 +137,39 @@ contract HeedTest is Test {
         vm.stopPrank();
         assertFalse(tm.trusts(alice, bob));
     }
+
+    function test_registerDelegate_setsMappingsAndForwardsValue() public {
+        address delegate = makeAddr("delegate");
+        bytes32 clientId = keccak256("heed-mac-v1");
+        vm.deal(alice, 1 ether);
+
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.DelegateRegistered(alice, delegate, clientId);
+        vm.prank(alice);
+        tm.registerDelegate{value: 0.01 ether}(delegate, clientId);
+
+        assertEq(tm.delegateOwner(delegate), alice);
+        assertEq(tm.delegateClient(delegate), clientId);
+        assertEq(delegate.balance, 0.01 ether);
+    }
+
+    function test_revokeDelegate_byOwner() public {
+        address delegate = makeAddr("delegate");
+        vm.startPrank(alice);
+        tm.registerDelegate(delegate, bytes32(0));
+        vm.expectEmit(true, true, false, true, address(tm));
+        emit IHeed.DelegateRevoked(alice, delegate);
+        tm.revokeDelegate(delegate);
+        vm.stopPrank();
+        assertEq(tm.delegateOwner(delegate), address(0));
+    }
+
+    function test_revokeMyself_byDelegate() public {
+        address delegate = makeAddr("delegate");
+        vm.prank(alice);
+        tm.registerDelegate(delegate, bytes32(0));
+        vm.prank(delegate);
+        tm.revokeMyself();
+        assertEq(tm.delegateOwner(delegate), address(0));
+    }
 }
