@@ -37,6 +37,7 @@ interface IHeed {
     error InsufficientValue(uint256 sumOfValues, uint256 msgValue);
     error MailFailed(uint256 index);
     error EmptyPubKey();
+    error InvalidDelegateSignature();
 
     function MAX_FEE_GWEI() external view returns (uint32);
     function publishKey(uint32 keyNonce, bytes32 pub) external;
@@ -46,7 +47,13 @@ interface IHeed {
     function trust(address[] calldata senders) external;
     function untrust(address[] calldata senders) external;
     function trusts(address recipient, address sender) external view returns (bool);
-    function registerDelegate(address delegate, bytes32 clientId) external payable;
+    function registerDelegate(
+        address delegate,
+        bytes32 clientId,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable;
     function revokeDelegate(address delegate) external;
     function revokeMyself() external;
     function delegateOwner(address delegate) external view returns (address);

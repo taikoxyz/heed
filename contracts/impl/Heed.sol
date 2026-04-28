@@ -57,7 +57,26 @@ contract Heed is IHeed {
             emit Trusted(msg.sender, senders[i], false);
         }
     }
-    function registerDelegate(address delegate, bytes32 clientId) external payable {
+    function registerDelegate(
+        address delegate,
+        bytes32 clientId,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external payable {
+        if (delegate == address(0)) revert InvalidDelegateSignature();
+        bytes32 digest = keccak256(
+            abi.encode(
+                bytes32("heed.delegate.v1"),
+                block.chainid,
+                address(this),
+                msg.sender,
+                delegate,
+                clientId
+            )
+        );
+        if (ecrecover(digest, v, r, s) != delegate) revert InvalidDelegateSignature();
+
         delegateOwner[delegate] = msg.sender;
         delegateClient[delegate] = clientId;
         emit DelegateRegistered(msg.sender, delegate, clientId);

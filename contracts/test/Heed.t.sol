@@ -14,6 +14,24 @@ contract HeedTest is Test {
         tm = new Heed(10_000_000);
     }
 
+    function _signConsent(uint256 sk, address owner, address delegate, bytes32 clientId)
+        internal
+        view
+        returns (uint8 v, bytes32 r, bytes32 s)
+    {
+        bytes32 digest = keccak256(
+            abi.encode(
+                bytes32("heed.delegate.v1"),
+                block.chainid,
+                address(tm),
+                owner,
+                delegate,
+                clientId
+            )
+        );
+        (v, r, s) = vm.sign(sk, digest);
+    }
+
     function test_publishKey_storesAndEmits() public {
         bytes32 pub0 = bytes32(uint256(1));
         vm.expectEmit(true, false, false, true, address(tm));
@@ -140,24 +158,52 @@ contract HeedTest is Test {
     }
 
     function test_registerDelegate_setsMappingsAndForwardsValue() public {
-        address delegate = makeAddr("delegate");
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
         bytes32 clientId = keccak256("heed-mac-v1");
         vm.deal(alice, 1 ether);
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, clientId);
 
         vm.expectEmit(true, true, false, true, address(tm));
         emit IHeed.DelegateRegistered(alice, delegate, clientId);
         vm.prank(alice);
-        tm.registerDelegate{value: 0.01 ether}(delegate, clientId);
+        tm.registerDelegate{value: 0.01 ether}(delegate, clientId, v, r, s);
 
         assertEq(tm.delegateOwner(delegate), alice);
         assertEq(tm.delegateClient(delegate), clientId);
         assertEq(delegate.balance, 0.01 ether);
     }
 
+    function test_registerDelegate_revertsOnSquatAttempt() public {
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        bytes32 clientId = bytes32(0);
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, clientId);
+
+        address mallory = makeAddr("mallory");
+        vm.prank(mallory);
+        vm.expectRevert(IHeed.InvalidDelegateSignature.selector);
+        tm.registerDelegate(delegate, clientId, v, r, s);
+    }
+
+    function test_registerDelegate_revertsOnTamperedClientId() public {
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(uint256(1)));
+
+        vm.prank(alice);
+        vm.expectRevert(IHeed.InvalidDelegateSignature.selector);
+        tm.registerDelegate(delegate, bytes32(uint256(2)), v, r, s);
+    }
+
+    function test_registerDelegate_revertsOnZeroDelegate() public {
+        vm.prank(alice);
+        vm.expectRevert(IHeed.InvalidDelegateSignature.selector);
+        tm.registerDelegate(address(0), bytes32(0), 27, bytes32(0), bytes32(0));
+    }
+
     function test_revokeDelegate_byOwner() public {
-        address delegate = makeAddr("delegate");
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(0));
         vm.startPrank(alice);
-        tm.registerDelegate(delegate, bytes32(0));
+        tm.registerDelegate(delegate, bytes32(0), v, r, s);
         vm.expectEmit(true, true, false, true, address(tm));
         emit IHeed.DelegateRevoked(alice, delegate);
         tm.revokeDelegate(delegate);
@@ -166,9 +212,10 @@ contract HeedTest is Test {
     }
 
     function test_revokeMyself_byDelegate() public {
-        address delegate = makeAddr("delegate");
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(0));
         vm.prank(alice);
-        tm.registerDelegate(delegate, bytes32(0));
+        tm.registerDelegate(delegate, bytes32(0), v, r, s);
         vm.prank(delegate);
         tm.revokeMyself();
         assertEq(tm.delegateOwner(delegate), address(0));
@@ -246,10 +293,11 @@ contract HeedTest is Test {
 
     function test_sendBatch_delegateAttribution() public {
         address bob = makeAddr("bob");
-        address delegate = makeAddr("delegate");
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(0));
         vm.deal(alice, 1 ether);
         vm.prank(alice);
-        tm.registerDelegate{value: 0.05 ether}(delegate, bytes32(0));
+        tm.registerDelegate{value: 0.05 ether}(delegate, bytes32(0), v, r, s);
 
         IHeed.MailIntent[] memory mails = new IHeed.MailIntent[](1);
         mails[0] = IHeed.MailIntent({recipient: bob, valueGwei: 0, contentRef: bytes32(uint256(1))});
@@ -281,18 +329,21 @@ contract HeedTest is Test {
     }
 
     function test_registerDelegate_revertsWhenDelegateCannotReceiveEth() public {
-        Reverter reverter = new Reverter();
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
+        vm.etch(delegate, type(Reverter).runtimeCode);
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(0));
         vm.deal(alice, 1 ether);
         vm.prank(alice);
         vm.expectRevert("fund-fail");
-        tm.registerDelegate{value: 0.01 ether}(address(reverter), bytes32(0));
+        tm.registerDelegate{value: 0.01 ether}(delegate, bytes32(0), v, r, s);
     }
 
     function test_revokeDelegate_revertsWhenNotOwner() public {
-        address delegate = makeAddr("delegate");
+        (address delegate, uint256 sk) = makeAddrAndKey("delegate");
         address bob = makeAddr("bob");
+        (uint8 v, bytes32 r, bytes32 s) = _signConsent(sk, alice, delegate, bytes32(0));
         vm.prank(alice);
-        tm.registerDelegate(delegate, bytes32(0));
+        tm.registerDelegate(delegate, bytes32(0), v, r, s);
         vm.prank(bob);
         vm.expectRevert("not-owner");
         tm.revokeDelegate(delegate);

@@ -121,7 +121,14 @@ function trust(address[] calldata senders) external;
 function untrust(address[] calldata senders) external;
 
 // Delegates
-function registerDelegate(address delegate, bytes32 clientId) external payable;  // forwards msg.value to delegate
+// (v,r,s) must be the delegate's secp256k1 signature over
+// keccak256(abi.encode("heed.delegate.v1", chainid, contract, msg.sender, delegate, clientId)),
+// proving the delegate consents to be owned by msg.sender. Prevents squatting/spoofing.
+function registerDelegate(
+    address delegate,
+    bytes32 clientId,
+    uint8 v, bytes32 r, bytes32 s
+) external payable;                                        // forwards msg.value to delegate
 function revokeDelegate(address delegate) external;        // sender-side revocation
 function revokeMyself() external;                          // delegate-side revocation
 
@@ -279,7 +286,7 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 
 ### Delegate send (one-click client setup, then frictionless sends)
 
-1. **Setup (once per install):** the client generates a fresh secp256k1 keypair (the delegate). The user's wallet calls `registerDelegate(delegate, clientId)` payable, with funding (e.g., 0.01 ETH). Funds are forwarded to the delegate address in-tx.
+1. **Setup (once per install):** the client generates a fresh secp256k1 keypair (the delegate) and signs the consent digest `keccak256(abi.encode("heed.delegate.v1", chainid, contract, owner, delegate, clientId))` with the delegate key. The user's wallet calls `registerDelegate(delegate, clientId, v, r, s)` payable, with funding (e.g., 0.01 ETH). The contract verifies the consent signature, then forwards `msg.value` to the delegate address in-tx. The signature requirement prevents anyone from claiming an address they don't control as their delegate.
 2. **Send:** the client signs `sendBatch(...)` directly with the delegate key (no wallet popup). The contract resolves `effectiveSender = delegateOwner[msg.sender]`. Fees are paid out of the delegate's ETH balance.
 3. **Top-up:** the user can transfer ETH directly to the delegate address whenever needed — the delegate is just an EOA, no contract function required.
 4. **Revocation:** either the owner (`revokeDelegate`) or the delegate itself (`revokeMyself`) can clear the binding. After revocation, the delegate EOA remains a normal address — it can still call `sendBatch`, but as its own `effectiveSender = msg.sender`, no longer on behalf of the prior owner.
