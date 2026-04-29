@@ -61,25 +61,32 @@ Commands:
 - `heed setup` — interactive: generate/import wallet → derive X25519 keypair → publish encryption key on-chain → optionally set the agent's `uri` (free-form).
 - `heed send <to> --title --body [--urgency --action-url --reply-to --uri --name --owner-url] [--from-stdin]` — envelope `from` defaults pulled from `heed config` if not passed.
 - `heed inbox [--since=<ts>] [--unread] [--json] [--watch]`
-- `heed agent {set-uri <uri>|set-name <name>|set-owner-url <url>|show}` — manages the agent's claimed envelope identity (stored locally in config). Heed does not register the agent anywhere; if the operator wants ERC-8004 / ENS / DID registration, they handle that with their own tooling and pass the resulting URI here.
-- `heed key {show|rotate}`, `heed fee {get|set}`, `heed config {get|set}`.
+- `heed agent {set-uri <uri>|set-name <name>|set-owner-url <url>|set-logo-cid <cid>|show}` — manages the agent's claimed envelope identity (stored locally in config). Heed does not register the agent anywhere; if the operator wants ERC-8004 / ENS / DID registration, they handle that with their own tooling and pass the resulting URI here.
+- `heed key show`, `heed config {get|set}`.
 
 Key storage:
-- macOS Keychain by default; libsecret on Linux; DPAPI on Windows.
-- File-based fallback (`~/.config/heed/keys.json`, 0600) when keychain unavailable, behind `--keystore=file` flag.
+- File-based at `$XDG_CONFIG_HOME/heed/wallet.json` (or `~/.config/heed/wallet.json`), mode 0600, behind the default `--keystore=file` flag.
 - `HEED_PRIVATE_KEY` env var for headless/CI/sandboxed agents (highest priority, no persistence).
+- `--keystore auto|file|env` selectable per command. Auto picks `HEED_PRIVATE_KEY` if set, else falls back to file.
+- Native OS keychain integration is deferred to a follow-up.
 
 Critical files: `cli/package.json`, `cli/src/index.ts`, `cli/src/commands/*.ts`, `cli/src/keystore/*.ts`.
 
 ### W3 — `web` extensions
-- Sender card: render `from.name`, `from.owner_url`, `from.logo_cid` from the envelope (signature-verified means "the sending wallet authored this card", not "the name is true"). Render `0xAB…CD` for messages without an envelope.
-- URI rendering pipeline: pluggable resolver registry keyed by URI scheme. Ships with two resolvers in v1:
-  - `erc8004:<chain>:<id>` — calls the registry contract on the named chain; on success, shows a "verified via 8004 — owner `0x…`" affordance.
-  - `https://...` — best-effort favicon + page title fetch via a small client-side helper; cached.
-  - Unknown schemes render the raw URI text as a small caption under the name.
-- Tap-to-reply on each message: button opens a small inline composer (≤500 chars optional body), submits via existing write client with `reply_to` set to the parent message id.
-- Thread view: group messages by `reply_to` chain; show inline.
-- Landing/copy: rewrite the README hero in the SPA and the static landing copy to position as "the wallet inbox AI agents pay to reach."
+
+**Shipped:**
+- Envelope card: renders `from.name`, `from.owner_url`, `from.logo_cid`, urgency badge, body, action CTA, fee, reply-to, and live signer-vs-sender verification.
+- URI rendering pipeline: pluggable resolver registry keyed by URI scheme. Two resolvers shipped:
+  - `erc8004:<chain>:<id>` — on-chain registry lookup with "verified via 8004" affordance.
+  - `https://...` — best-effort favicon + page title fetch.
+  - Unknown schemes render the raw URI text as a caption under the name.
+- **Compose** tab: full compose→encrypt→pin→send flow with recipient fee/encryption-key lookup. Requires Pinata JWT. Encrypts when recipient has a published key; sends plaintext otherwise.
+- **Sent** tab: outbox listing via `RpcMailSource.listOutbox` or indexer GraphQL.
+- **Settings** panel: RPC, gateway, indexer URL, Pinata JWT, max anti-spam fee — persisted to localStorage, overriding Vite env defaults at runtime.
+
+**Not yet shipped:**
+- Tap-to-reply inline composer (reply to a specific message from the inbox).
+- Thread view (group messages by `reply_to` chain).
 
 Critical files: `web/src/components/MessageCard.tsx`, `web/src/components/Reply.tsx` (new), `web/src/lib/uri/{index.ts,erc8004.ts,https.ts}` (new — pluggable URI resolver), `web/src/pages/Inbox.tsx`, top-level landing copy.
 
@@ -107,14 +114,14 @@ Critical files: `web/src/components/MessageCard.tsx`, `web/src/components/Reply.
 - `core-lib/src/clients/write.ts` — envelope encoding pre-encrypt
 - `core-lib/src/clients/read.ts` (if exists) / `core-lib/src/sources/*` — envelope decoding post-decrypt
 - `core-lib/package.json` — new exports
-- `web/src/components/MessageCard.tsx`, `web/src/pages/Inbox.tsx`, landing copy
+- `web/src/components/EnvelopeCard.tsx`, `web/src/components/Compose.tsx`, `web/src/App.tsx`
 - `docs/heed-design.md`, `README.md`
 - root `package.json` workspaces config (add `cli/`)
 
 **Create:**
 - `core-lib/src/envelope/{schema.ts,codec.ts,sign.ts,index.ts}`
 - `cli/` (full new package)
-- `web/src/components/Reply.tsx`, `web/src/lib/uri/{index.ts,erc8004.ts,https.ts}`
+- `web/src/components/SentList.tsx`, `web/src/lib/uri/{index.ts,erc8004.ts,https.ts}`
 - `docs/agents.md`, `docs/plans/2026-04-29-heed-v1-pivot.md`
 
 **Untouched:** `contracts/Heed.sol`, all deployments, X25519 crypto helpers, IPFS helpers.
@@ -123,12 +130,11 @@ Critical files: `web/src/components/MessageCard.tsx`, `web/src/components/Reply.
 
 End-to-end success looks like this script passing on a clean checkout:
 
-1. `pnpm i && pnpm build` — workspaces all build.
-2. `pnpm test` — unit tests green across `core-lib`, `cli`, `web`.
-3. `pnpm e2e` — anvil fork + CLI + web headless check passes.
-4. Manual: in a real terminal, `heed setup` (file keystore, ephemeral wallet on a Taiko testnet fork), `heed send <my-wallet> --title "test" --body "hi"`, open web app → see envelope-rendered card → tap reply → `heed inbox --watch` shows reply.
-5. Mainnet smoke (release-only): two wallets, one real send, one real reply, verified in web app and `heed inbox`.
+1. `npm i && npm --workspace @heed/core run build && npm --workspace heed-cli run build && npm --workspace @heed/web run build` — workspaces all build.
+2. `npm --workspace @heed/core test && npm --workspace heed-cli test && npm --workspace @heed/web test` — unit tests green across `core-lib` (67), `cli` (80), `web` (18). 165/165 passing.
+3. `npm run e2e` — anvil + forge deploy + protocol round-trip passes. **Note:** runs against a fresh anvil chain, not a Taiko mainnet fork. The mainnet fork variant is tracked as a follow-up (see [2026-04-29-e2e-mainnet-fork.md](./2026-04-29-e2e-mainnet-fork.md)).
+4. Manual mainnet smoke (release-only): two wallets, one real send, one real reply, verified in web app and `heed inbox`. See [`docs/release-smoke.md`](../release-smoke.md).
 
 ## Out of scope for v1
 
-MCP server, push/native/email notifications, mobile, attachment UX, agent reputation UI, paid-reply / bounty mechanics, indexer schema changes beyond what envelope rendering needs, compose-from-scratch in web.
+MCP server, push/native/email notifications, mobile, attachment UX, agent reputation UI, paid-reply / bounty mechanics, tap-to-reply, thread view, indexer schema changes beyond what envelope rendering needs.

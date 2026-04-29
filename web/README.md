@@ -94,7 +94,6 @@ from any IPFS gateway. The canonical HTTP host is a convenience mirror.
 
 ## Out of scope (v1a)
 
-- Compose / send flow.
 - Delegate-key registration.
 - Persistent encrypted storage of derived keys.
 - Real-time push (websocket / SSE) — reads are pull-based via
