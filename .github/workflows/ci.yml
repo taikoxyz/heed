@@ -39,6 +39,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run typecheck --workspace @heed/core
+      - run: npm run build:core
       - run: npm run typecheck --workspace heed-cli
       - run: npm run typecheck --workspace @heed/web
 
