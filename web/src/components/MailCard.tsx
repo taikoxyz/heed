@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { MailEvent, PlaintextPayload } from "@heed/core";
+import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
+import { EnvelopeCard } from "./EnvelopeCard";
 
 export function MailCard({
   mail,
@@ -9,7 +10,7 @@ export function MailCard({
   mail: MailEvent;
   direction?: "received" | "sent";
 }) {
-  const [content, setContent] = useState<PlaintextPayload | null>(null);
+  const [content, setContent] = useState<DecodedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const decrypt = useMailDecryption();
@@ -32,8 +33,7 @@ export function MailCard({
   return (
     <li className="p-4 hover:bg-gray-50">
       <div className="text-sm text-gray-500">
-        {counterpartyLabel}{" "}
-        <span className="font-mono">{counterparty}</span>
+        {counterpartyLabel} <span className="font-mono">{counterparty}</span>
       </div>
       <div className="text-xs text-gray-500">
         {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei · ref{" "}
@@ -41,9 +41,7 @@ export function MailCard({
       </div>
 
       {content ? (
-        <pre className="mt-2 text-xs whitespace-pre-wrap">
-          {JSON.stringify(content, null, 2)}
-        </pre>
+        <div className="mt-2">{renderDecoded(content, mail)}</div>
       ) : (
         <button
           onClick={() => open(false)}
@@ -67,5 +65,24 @@ export function MailCard({
         </div>
       )}
     </li>
+  );
+}
+
+function renderDecoded(content: DecodedPayload, mail: MailEvent) {
+  if (content.kind === "envelope") {
+    return <EnvelopeCard envelope={content.envelope} mail={mail} />;
+  }
+  if (content.kind === "mail") {
+    return (
+      <div className="space-y-1">
+        <div className="text-xs text-gray-500">legacy mail · {content.mail.subject}</div>
+        <pre className="text-xs whitespace-pre-wrap font-sans">{content.mail.body.text}</pre>
+      </div>
+    );
+  }
+  return (
+    <div className="text-xs text-gray-500">
+      unknown payload — {content.bytes.length} bytes
+    </div>
   );
 }

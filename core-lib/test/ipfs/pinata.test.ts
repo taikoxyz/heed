@@ -26,6 +26,7 @@ describe("pin", () => {
     mockFetch.mockResolvedValueOnce({
       ok: false,
       status: 500,
+      text: async () => "internal server error",
     } as Response);
 
     await expect(pin(new Uint8Array([1]), "f.bin", { jwt: "tok" })).rejects.toThrow("pinata 500");

@@ -4,6 +4,8 @@ export * from "./crypto/lockbox";
 export * from "./payload/cid";
 export * from "./payload/plaintext";
 export * from "./payload/encrypted";
+export * from "./payload/decoded";
+export * from "./envelope";
 export * from "./contract/abi";
 export * from "./contract/client";
 export * from "./ipfs/pinata";
