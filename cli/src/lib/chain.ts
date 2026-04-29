@@ -3,12 +3,21 @@ import {
   createWalletClient,
   defineChain,
   http,
+  hexToBytes,
   type Address,
   type Hash,
   type Hex,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { createReadClient, createWriteClient } from "@heed/core";
+import {
+  createReadClient,
+  createWriteClient,
+  createRpcMailSource,
+  digestToCid,
+  fetchCid,
+  type MailEvent,
+  type MailSource,
+} from "@heed/core";
 import type { RecipientKey } from "./send";
 
 export function buildChain(args: { chainId: number; rpcUrl: string }) {
@@ -63,3 +72,28 @@ export async function sendBatchOnChain(args: {
   const write = createWriteClient(wallet, args.contract);
   return await write.sendBatch(args.mails, false, args.totalValueWei);
 }
+
+export function buildMailSource(args: {
+  rpcUrl: string;
+  chainId: number;
+  contract: Address;
+  deployedAtBlock: bigint;
+}): MailSource {
+  const chain = buildChain({ chainId: args.chainId, rpcUrl: args.rpcUrl });
+  const publicClient = createPublicClient({ transport: http(args.rpcUrl), chain });
+  return createRpcMailSource({
+    client: publicClient,
+    contract: args.contract,
+    deployedAtBlock: args.deployedAtBlock,
+  });
+}
+
+export async function fetchByContentRef(args: {
+  gateway: string;
+  contentRef: Hex;
+}): Promise<Uint8Array> {
+  const cid = digestToCid(hexToBytes(args.contentRef));
+  return await fetchCid(cid, args.gateway);
+}
+
+export type { MailEvent, MailSource };

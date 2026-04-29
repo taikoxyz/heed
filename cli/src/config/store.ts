@@ -4,12 +4,16 @@ import type { Address } from "viem";
 
 export const HEED_MAINNET_CHAIN_ID = 167000;
 export const HEED_MAINNET_CONTRACT: Address = "0x08f32278B2CFD962444ae9541122eD84cc745678";
+export const HEED_DEFAULT_GATEWAY = "https://gateway.pinata.cloud";
+export const HEED_DEPLOYED_AT_BLOCK = 6091023n;
 
 export interface HeedConfig {
   network: {
     chain_id: number;
     rpc_url: string;
     contract: Address;
+    gateway: string;
+    deployed_at_block: number;
   };
   identity: {
     name: string;
@@ -24,6 +28,8 @@ export const ALLOWED_KEYS = [
   "network.chain_id",
   "network.rpc_url",
   "network.contract",
+  "network.gateway",
+  "network.deployed_at_block",
   "identity.name",
   "identity.owner_url",
   "identity.logo_cid",
@@ -35,7 +41,13 @@ export type AllowedKey = (typeof ALLOWED_KEYS)[number];
 
 export function defaultConfig(): HeedConfig {
   return {
-    network: { chain_id: HEED_MAINNET_CHAIN_ID, rpc_url: "", contract: HEED_MAINNET_CONTRACT },
+    network: {
+      chain_id: HEED_MAINNET_CHAIN_ID,
+      rpc_url: "",
+      contract: HEED_MAINNET_CONTRACT,
+      gateway: HEED_DEFAULT_GATEWAY,
+      deployed_at_block: Number(HEED_DEPLOYED_AT_BLOCK),
+    },
     identity: { name: "", owner_url: "" },
     key_nonce: 0,
   };
@@ -62,6 +74,8 @@ export function getValue(config: HeedConfig, key: AllowedKey): string | number |
     case "network.chain_id": return config.network.chain_id;
     case "network.rpc_url": return config.network.rpc_url;
     case "network.contract": return config.network.contract;
+    case "network.gateway": return config.network.gateway;
+    case "network.deployed_at_block": return config.network.deployed_at_block;
     case "identity.name": return config.identity.name;
     case "identity.owner_url": return config.identity.owner_url;
     case "identity.logo_cid": return config.identity.logo_cid;
@@ -75,6 +89,8 @@ export function setValue(config: HeedConfig, key: AllowedKey, value: string): He
     case "network.chain_id": return { ...config, network: { ...config.network, chain_id: parseIntStrict(value, key) } };
     case "network.rpc_url": return { ...config, network: { ...config.network, rpc_url: value } };
     case "network.contract": return { ...config, network: { ...config.network, contract: parseAddress(value) } };
+    case "network.gateway": return { ...config, network: { ...config.network, gateway: value } };
+    case "network.deployed_at_block": return { ...config, network: { ...config.network, deployed_at_block: parseIntStrict(value, key) } };
     case "identity.name": return { ...config, identity: { ...config.identity, name: value } };
     case "identity.owner_url": return { ...config, identity: { ...config.identity, owner_url: value } };
     case "identity.logo_cid": return { ...config, identity: { ...config.identity, logo_cid: value } };

@@ -4,6 +4,7 @@ import { registerKeyCommand } from "./commands/key";
 import { registerSetupCommand } from "./commands/setup";
 import { registerAgentCommand } from "./commands/agent";
 import { registerSendCommand } from "./commands/send";
+import { registerInboxCommand } from "./commands/inbox";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -15,6 +16,7 @@ export function buildProgram(): Command {
 
   registerSetupCommand(program);
   registerSendCommand(program);
+  registerInboxCommand(program);
   registerAgentCommand(program);
   registerKeyCommand(program);
   registerConfigCommand(program);
