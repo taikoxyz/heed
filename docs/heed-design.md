@@ -7,7 +7,7 @@
 
 ## Context
 
-Email on Web2 is a centralized, opt-in, spam-saturated medium. AI agents increasingly act on behalf of humans (releases, alerts, account changes, routine asks) and have no inbox to deliver into without screen-scraping or onboarding to whatever messaging stack each human happens to use. Heed is a **trustless, address-native channel from AI agents to humans**: any EVM address is a mailbox; the recipient prices their attention via an anti-spam fee paid directly to them in ETH; payloads are encrypted with deterministic, recoverable key material derived from the wallet itself; and clients run locally to avoid trusting any hosted service with delegate keys.
+Email on Web2 is a centralized, opt-in, spam-saturated medium. AI agents increasingly act on behalf of humans (releases, alerts, account changes, routine asks) and have no inbox to deliver into without screen-scraping or onboarding to whatever messaging stack each human happens to use. Heed is a **trustless, address-native channel from AI agents to humans**: any EVM address is a mailbox; the recipient prices their attention via an anti-spam fee paid directly to them in ETH; payloads are encrypted with deterministic, recoverable key material derived from the wallet itself; and clients run locally to avoid trusting any hosted service with private keys.
 
 The deployed v1 ships three artifacts: an immutable `Heed.sol` on Taiko mainnet, a TypeScript protocol library (`@heed/core`), and two reference clients — `heed-cli` for agents and `@heed/web` for the human side. An IPFS-pinned envelope schema carries AI-shaped metadata (sender identity claims, urgency, optional CTA, threading).
 
@@ -33,7 +33,6 @@ Other use cases (own-agent companion, intra-org notifications, dapp/DAO alerts) 
 - Self-claimed agent identity, signature-bound to the sending wallet; identity registries are out-of-protocol.
 - Optional encryption with deterministic, recoverable key material derived from the wallet.
 - Batch sends with a single transaction, per-mail events, atomic-or-best-effort modes.
-- One-click client setup via funded delegate addresses, scoped per client install.
 - Clients are local-first; the protocol does not depend on any hosted service.
 
 ## Non-Goals
@@ -128,6 +127,8 @@ A reference indexer (Ponder + Postgres) is supported but optional; clients fall 
 
 The contract is **immutable**; all sections in this document describe the deployed bytecode. Address: [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678). Deploy block: `6091023`.
 
+> **Note.** The deployed contract additionally exposes `registerDelegate`/`revokeDelegate`/`revokeMyself` and a delegate-aware `effectiveSender` resolution path. These are **not part of the v1 client surface** and are intentionally undocumented here; v1 clients always send as `msg.sender`.
+
 ### Constants
 
 ```solidity
@@ -146,8 +147,6 @@ struct EncKey {
 mapping(address => EncKey[2])                       internal _keys;          // 2 newest
 mapping(address => uint32)                          public   feeGwei;        // 0 = no fee
 mapping(address => mapping(address => bool))        public   trusts;         // recipient => sender => trusted
-mapping(address => address)                         public   delegateOwner;  // delegate => owner (0x0 if none)
-mapping(address => bytes32)                         public   delegateClient; // delegate => clientId
 ```
 
 ### External functions
@@ -163,18 +162,6 @@ function setFee(uint32 valueGwei) external;        // requires valueGwei <= MAX_
 // Whitelist
 function trust(address[] calldata senders) external;
 function untrust(address[] calldata senders) external;
-
-// Delegates
-// (v,r,s) must be the delegate's secp256k1 signature over
-// keccak256(abi.encode("heed.delegate.v1", chainid, contract, msg.sender, delegate, clientId)),
-// proving the delegate consents to be owned by msg.sender. Prevents squatting/spoofing.
-function registerDelegate(
-    address delegate,
-    bytes32 clientId,
-    uint8 v, bytes32 r, bytes32 s
-) external payable;                                        // forwards msg.value to delegate
-function revokeDelegate(address delegate) external;        // sender-side revocation
-function revokeMyself() external;                          // delegate-side revocation
 
 // Sending
 struct MailIntent {
@@ -199,8 +186,6 @@ function getInboxes(address[] calldata addrs) external view returns (InboxView[]
 event KeyPublished      (address indexed owner, uint32 keyNonce, bytes32 pub);
 event FeeUpdated        (address indexed recipient, uint32 valueGwei);
 event Trusted           (address indexed recipient, address indexed sender, bool trusted);
-event DelegateRegistered(address indexed owner, address indexed delegate, bytes32 clientId);
-event DelegateRevoked   (address indexed owner, address indexed delegate);
 event MailSent          (address indexed sender, address indexed recipient, bytes32 contentRef, uint32 valueGwei);
 ```
 
@@ -208,11 +193,10 @@ event MailSent          (address indexed sender, address indexed recipient, byte
 
 For each `MailIntent` in a batch:
 
-1. `effectiveSender` = `delegateOwner[msg.sender]` if non-zero, else `msg.sender`.
-2. `requiredFee` = `trusts[recipient][effectiveSender] ? 0 : feeGwei[recipient]`.
-3. Validate `valueGwei >= requiredFee`. (No upper cap on `valueGwei` — sender voluntarily pays for priority.)
-4. Forward `valueGwei * 1 gwei` from the `msg.value` budget to `recipient` via low-level `call`.
-5. Emit `MailSent(effectiveSender, recipient, contentRef, valueGwei)`.
+1. `requiredFee` = `trusts[recipient][msg.sender] ? 0 : feeGwei[recipient]`.
+2. Validate `valueGwei >= requiredFee`. (No upper cap on `valueGwei` — sender voluntarily pays for priority.)
+3. Forward `valueGwei * 1 gwei` from the `msg.value` budget to `recipient` via low-level `call`.
+4. Emit `MailSent(msg.sender, recipient, contentRef, valueGwei)`.
 
 Modes:
 
@@ -220,7 +204,7 @@ Modes:
 - **`atomic = false`** (best-effort): a failed mail (insufficient `valueGwei`, transfer revert) is **skipped silently** and its `valueGwei` is refunded with the rest of any unspent ETH at the end of the call.
 - After the loop: the contract refunds any unspent ETH (unsent budget + skipped values + over-payment) to `msg.sender` via a single `call`.
 
-The contract emits *only* `MailSent` events from `sendBatch`; no state variable is written by the send path. The only writers are key/fee/trust/delegate management functions.
+The contract emits *only* `MailSent` events from `sendBatch`; no state variable is written by the send path. The only writers are key/fee/trust management functions.
 
 ### Constructor
 
@@ -312,13 +296,6 @@ For ad-hoc traffic where encryption is unnecessary (rare in v1), `scheme` is abs
 3. Client pins payload to Pinata (or any IPFS pinning service), gets `contentRef`.
 4. The sender wallet signs and broadcasts `sendBatch([{ recipient, valueGwei, contentRef }], atomic = true)` with `msg.value = valueGwei * 1 gwei`.
 
-### Delegate send (one-click client setup, then frictionless sends)
-
-1. **Setup (once per install):** the client generates a fresh secp256k1 keypair (the delegate) and signs the consent digest `keccak256(abi.encode("heed.delegate.v1", chainid, contract, owner, delegate, clientId))` with the delegate key. The user's wallet calls `registerDelegate(delegate, clientId, v, r, s)` payable, with funding (e.g., 0.01 ETH). The contract verifies the consent signature, then forwards `msg.value` to the delegate address in-tx. The signature requirement prevents anyone from claiming an address they don't control as their delegate.
-2. **Send:** the client signs `sendBatch(...)` directly with the delegate key (no wallet popup). The contract resolves `effectiveSender = delegateOwner[msg.sender]`. Fees are paid out of the delegate's ETH balance.
-3. **Top-up:** the user can transfer ETH directly to the delegate address whenever needed — the delegate is just an EOA, no contract function required.
-4. **Revocation:** either the owner (`revokeDelegate`) or the delegate itself (`revokeMyself`) can clear the binding. After revocation, the delegate EOA remains a normal address — it can still call `sendBatch`, but as its own `effectiveSender = msg.sender`, no longer on behalf of the prior owner.
-
 ### Receive
 
 1. The client subscribes to `MailSent` events filtered by `recipient = self`. Default: paginated `eth_getLogs` over a configurable lookback window. Optional: indexer GraphQL.
@@ -408,7 +385,6 @@ Two implementations ship:
 - `keys(address, keyNonce, pub, publishedAt)` — full history.
 - `feeUpdates(address, valueGwei, blockTimestamp)` — full history.
 - `trusts(recipient, sender, trusted, blockTimestamp)` — full history.
-- `delegates(delegate, owner, clientId, registeredAt, revokedAt)`
 
 ### API surface
 
@@ -425,7 +401,7 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 ### What shipped
 
 1. **Foundry repo** with `forge` + `viem`. Toolchain locked.
-2. **Contract** developed and tested: ≥ 95% line / 100% branch coverage on `Heed.sol`. Property/fuzz tests on batch-send accounting; tests for delegate dual-revocation, key rotation, fee cap.
+2. **Contract** developed and tested: ≥ 95% line / 100% branch coverage on `Heed.sol`. Property/fuzz tests on batch-send accounting; tests for key rotation, fee cap.
 3. **Mainnet deploy** at block `6091023`. Address `0x08f32278…5678`. Verified on Taikoscan and Blockscout. Deployment record: [`deployments/mainnet.json`](../deployments/mainnet.json).
 4. **`@heed/core`** TypeScript library (envelope codec, X25519 lockbox, IPFS, mail sources, write client) — 67 tests passing. **Not yet on npm.**
 5. **`heed-cli`** package (binary `heed`) — 80 tests passing. **Not yet on npm.**
@@ -454,7 +430,6 @@ The contract is immutable; testing rigor compensates for the absence of a public
 - **Foundry test coverage** ≥ 95% line / 100% branch on `Heed.sol`, including:
   - Atomic vs. best-effort branch correctness with mixed success/failure.
   - Refund accounting under all paths.
-  - Delegate dual-revocation.
   - Key slot rotation invariant: slots always hold the two newest published nonces.
   - Fee cap enforcement at `setFee`.
 - **Invariant tests** (Foundry): "no state changes from `sendBatch`" assertion.
@@ -474,7 +449,6 @@ The contract is immutable; testing rigor compensates for the absence of a public
 | Direct mainnet without testnet exposes users to bugs we can't patch (immutable contract). | Audit pending; Foundry coverage and the anvil-fork e2e are the current line of defense. Bug fixes ship as v2 contract; clients support both. |
 | Pinata centralization for default pinning. | Client supports any IPFS pinning service; user supplies own JWT. Doc explicitly recommends self-hosted IPFS for high-value users. |
 | Self-claimed envelope identity could mislead recipients. | Inbox UI distinguishes the verified property (signing wallet) from claimed properties (name, owner_url, uri). URI resolvers can decorate with verification affordances when the operator opts into a registry. |
-| Delegate key compromise on a user's machine. | Owner and delegate can both revoke. Funding is small (e.g., 0.01 ETH default). A compromised delegate cannot withdraw owner funds — only spend its own pre-funded balance on mail sends. |
 | Recipient address is a contract that reverts on `receive`. | Best-effort batch skips and refunds; atomic batch reverts. Behavior documented. |
 | Sender pays unbounded `valueGwei` by mistake. | Client enforces a "max anti-spam fee to send" config; UI confirmation for fees above threshold. |
 | Fee griefing: recipient sets max fee right before someone sends. | Sender always reads fee just-in-time; the tx still succeeds if `valueGwei >= fee`. Client may warn if fee changed since compose. |
@@ -499,7 +473,6 @@ The contract is immutable; testing rigor compensates for the absence of a public
 
 ## Open Questions / Future Work
 
-- WebAuthn / passkey-bound delegate key unlock.
 - Federation / discovery layer for multiple reference indexers.
 - ENS / DID resolution affordances in the web inbox URI registry.
 - Optional second scheme: post-quantum hybrid lockbox (X25519 + ML-KEM-768).

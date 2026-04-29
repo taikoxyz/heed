@@ -25,44 +25,6 @@ export const HEED_ABI = [
   },
   {
     "type": "function",
-    "name": "delegateClient",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
-    "name": "delegateOwner",
-    "inputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [
-      {
-        "name": "",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "stateMutability": "view"
-  },
-  {
-    "type": "function",
     "name": "feeGwei",
     "inputs": [
       {
@@ -232,59 +194,6 @@ export const HEED_ABI = [
   },
   {
     "type": "function",
-    "name": "registerDelegate",
-    "inputs": [
-      {
-        "name": "delegate",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "clientId",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "v",
-        "type": "uint8",
-        "internalType": "uint8"
-      },
-      {
-        "name": "r",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      },
-      {
-        "name": "s",
-        "type": "bytes32",
-        "internalType": "bytes32"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "payable"
-  },
-  {
-    "type": "function",
-    "name": "revokeDelegate",
-    "inputs": [
-      {
-        "name": "delegate",
-        "type": "address",
-        "internalType": "address"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "revokeMyself",
-    "inputs": [],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
     "name": "sendBatch",
     "inputs": [
       {
@@ -380,50 +289,6 @@ export const HEED_ABI = [
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
-  },
-  {
-    "type": "event",
-    "name": "DelegateRegistered",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "delegate",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "clientId",
-        "type": "bytes32",
-        "indexed": false,
-        "internalType": "bytes32"
-      }
-    ],
-    "anonymous": false
-  },
-  {
-    "type": "event",
-    "name": "DelegateRevoked",
-    "inputs": [
-      {
-        "name": "owner",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      },
-      {
-        "name": "delegate",
-        "type": "address",
-        "indexed": true,
-        "internalType": "address"
-      }
-    ],
-    "anonymous": false
   },
   {
     "type": "event",
@@ -564,11 +429,6 @@ export const HEED_ABI = [
   },
   {
     "type": "error",
-    "name": "InvalidDelegateSignature",
-    "inputs": []
-  },
-  {
-    "type": "error",
     "name": "KeyNonceNotMonotonic",
     "inputs": [
       {
@@ -593,10 +453,5 @@ export const HEED_ABI = [
         "internalType": "uint256"
       }
     ]
-  },
-  {
-    "type": "error",
-    "name": "NotADelegate",
-    "inputs": []
   }
 ] as const;

@@ -20,9 +20,6 @@ export function createReadClient(client: PublicClient, address: Address) {
     async trusts(rcpt: Address, sender: Address): Promise<boolean> {
       return contract.read.trusts([rcpt, sender]) as Promise<boolean>;
     },
-    async delegateOwner(delegate: Address): Promise<Address> {
-      return contract.read.delegateOwner([delegate]) as Promise<Address>;
-    },
   };
 }
 
@@ -39,12 +36,6 @@ export function createWriteClient(wallet: WalletClient, address: Address) {
       write("trust", [senders]),
     untrust: (senders: Address[]) =>
       write("untrust", [senders]),
-    registerDelegate: (delegate: Address, clientId: Hex, sig: { v: number; r: Hex; s: Hex }, value: bigint) =>
-      write("registerDelegate", [delegate, clientId, sig.v, sig.r, sig.s], value),
-    revokeDelegate: (delegate: Address) =>
-      write("revokeDelegate", [delegate]),
-    revokeMyself: () =>
-      write("revokeMyself", []),
     sendBatch: (
       mails: Array<{ recipient: Address; valueGwei: number; contentRef: Hex }>,
       atomic: boolean,
