@@ -40,7 +40,6 @@ Other use cases (own-agent companion, intra-org notifications, dapp/DAO alerts) 
 - MCP server in v1 (CLI is sufficient — works for shell-out agents, cron, CI, and modern AI agent frameworks).
 - Push, native, or email notifications.
 - Mobile clients.
-- Compose-from-scratch in the web inbox (tap-to-reply only, in v1 follow-ups).
 - On-chain spam filtering beyond fee + whitelist.
 - Contract upgradeability or governance.
 - Read receipts, delivery confirmations, on-chain threading state.
@@ -327,9 +326,9 @@ The v1 shipping artifact for agents. Binary: `heed`. Thin wrapper over `@heed/co
 
 **Key storage:** file-based by default at `$XDG_CONFIG_HOME/heed/wallet.json` (or `~/.config/heed/wallet.json`), mode 0600. Override the config home with `HEED_HOME=<dir>`. `HEED_PRIVATE_KEY` env-var override for headless agents / CI / sandboxed environments — auto-selected when set, no persistence. Selectable per-command via `--keystore auto|file|env`. Native OS keychain integration is intentionally deferred to a follow-up; the file + env-var pattern matches `~/.aws/credentials` and `gh auth`.
 
-### `@heed/web` — envelope-aware read-only inbox
+### `@heed/web` — envelope-aware web inbox
 
-Goal: zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browser, including encrypted mail, without trusting a server with secrets.
+Goal: zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browser, send messages, and decrypt encrypted mail, without trusting a server with secrets.
 
 **Stack**
 
@@ -338,6 +337,13 @@ Goal: zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browse
 - Wallet connect via WalletConnect / injected (Frame, Rabby, MetaMask).
 - Encrypted mail: when the user wants to decrypt, the wallet signs the EIP-712 typed data (one signature per `keyNonce`); the derived x25519 private key lives in browser memory only — never persisted, never sent off-machine.
 
+**Tabs**
+
+- **Inbox** — lists mail received by the connected wallet. Each message is decrypted, decoded, and rendered as an `EnvelopeCard` or legacy `MailCard`.
+- **Sent** — lists mail sent by the connected wallet (outbox).
+- **Compose** — compose and send a new message. Looks up the recipient's fee and published encryption key; encrypts if the recipient has a key, sends as plaintext otherwise. Requires a Pinata JWT configured in Settings.
+- **Settings** — configure RPC endpoint, IPFS gateway, indexer URL, Pinata JWT, max anti-spam fee. Persisted to localStorage; overrides Vite env defaults at runtime.
+
 **Envelope rendering**
 
 - `EnvelopeCard` renders sender identity (claimed `name` + `owner_url` hostname link + URI badge), urgency, body, action CTA, fee, reply-to, and live signer-vs-sender verification (`signerMatchesSender`).
@@ -345,7 +351,7 @@ Goal: zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browse
 - Pluggable URI resolver registry under `web/src/lib/uri/`. Built-ins: `erc8004:` and `https:`. Unknown schemes render as raw URI captions.
 - Legacy `PlaintextPayload` mail still renders via the same dispatcher for backward compatibility.
 
-**Out-of-scope for the read-only reader (in this PR):** tap-to-reply inline composer, thread view by `reply_to` chain. These are W3 phase 2 follow-ups; the reader currently surfaces `reply_to` in the card header but does not group threads.
+**Out-of-scope:** tap-to-reply inline composer, thread view by `reply_to` chain. The inbox currently surfaces `reply_to` in the card header but does not group threads or offer an inline reply button.
 
 ### Configuration (per-install, persisted)
 
@@ -461,7 +467,6 @@ The contract is immutable; testing rigor compensates for the absence of a public
 - MCP server.
 - Push, native, or email notifications.
 - Mobile clients (iOS / Android).
-- Compose-from-scratch in the web inbox.
 - Agent reputation UI; paid-reply / bounty mechanics.
 - Hosted inbox or any centralized dependency.
 - Read receipts, delivery confirmations.

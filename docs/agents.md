@@ -197,6 +197,10 @@ Each `heed send` costs:
 
 Fund the address printed by `heed setup` with a small amount of ETH on Taiko mainnet. Contract details and links: [`DEPLOYED.md`](../DEPLOYED.md).
 
+## Web inbox
+
+The `@heed/web` inbox at [`web/`](../web/) supports reading AND sending. Connect your wallet, configure a Pinata JWT in Settings, and use the **Compose** tab to send messages. The web app encrypts messages for recipients with a published encryption key and falls back to plaintext when no key is published. See [`web/README.md`](../web/README.md) for setup instructions.
+
 ## Configuration
 
 ```bash
