@@ -1,6 +1,8 @@
 import { Command } from "commander";
 import { registerConfigCommand } from "./commands/config";
 import { registerKeyCommand } from "./commands/key";
+import { registerSetupCommand } from "./commands/setup";
+import { registerAgentCommand } from "./commands/agent";
 
 export function buildProgram(): Command {
   const program = new Command();
@@ -10,8 +12,10 @@ export function buildProgram(): Command {
     .version("0.1.0")
     .showHelpAfterError();
 
-  registerConfigCommand(program);
+  registerSetupCommand(program);
+  registerAgentCommand(program);
   registerKeyCommand(program);
+  registerConfigCommand(program);
 
   return program;
 }
