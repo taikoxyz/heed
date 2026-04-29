@@ -2,13 +2,25 @@ import { describe, it, expect } from "vitest";
 import { CID } from "multiformats/cid";
 import * as raw from "multiformats/codecs/raw";
 import { create as createDigest } from "multiformats/hashes/digest";
-import { digestToCid, cidToDigest } from "../../src/payload/cid";
+import {
+  digestToCid,
+  cidToDigest,
+  DAG_PB_CODE,
+  RAW_CODE,
+} from "../../src/payload/cid";
 
 describe("cid", () => {
-  it("round-trips bytes32 digest ↔ CIDv1", () => {
+  it("round-trips bytes32 digest ↔ CIDv1 (default dag-pb codec)", () => {
     const digest = new Uint8Array(32).fill(0xaa);
     const cid = digestToCid(digest);
-    expect(CID.parse(cid).toV1().toString()).toBe(cid);
+    expect(CID.parse(cid).code).toBe(DAG_PB_CODE);
+    expect(cidToDigest(cid)).toEqual(digest);
+  });
+
+  it("round-trips with explicit raw codec", () => {
+    const digest = new Uint8Array(32).fill(0xab);
+    const cid = digestToCid(digest, RAW_CODE);
+    expect(CID.parse(cid).code).toBe(RAW_CODE);
     expect(cidToDigest(cid)).toEqual(digest);
   });
 
