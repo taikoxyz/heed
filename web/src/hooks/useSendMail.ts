@@ -66,6 +66,12 @@ export function useSendMail() {
     const rcptKey = rcptInbox.keys[0];
     const recipientHasKey = !!rcptKey && rcptKey.pub !== ZERO_BYTES32;
 
+    if (cfg.maxFeeGwei > 0 && input.feeGwei > cfg.maxFeeGwei) {
+      throw new Error(
+        `recipient fee ${input.feeGwei} gwei exceeds your max of ${cfg.maxFeeGwei} gwei (Settings → Max anti-spam fee)`,
+      );
+    }
+
     const payload: PlaintextPayload = {
       v: 1,
       kind: "mail",
@@ -136,7 +142,12 @@ export function useSendMail() {
     );
 
     input.onProgress?.("confirm");
-    await publicClient.waitForTransactionReceipt({ hash: txHash });
+    const receipt = await publicClient.waitForTransactionReceipt({
+      hash: txHash,
+    });
+    if (receipt.status !== "success") {
+      throw new Error(`transaction reverted (${txHash})`);
+    }
 
     return { txHash, cid, contentRef, encrypted: recipientHasKey };
   };

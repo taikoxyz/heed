@@ -7,11 +7,17 @@ import { getEffectiveConfig } from "../lib/settings";
 
 export function useInbox() {
   const { address } = useAccount();
+  const cfg = getEffectiveConfig();
   return useQuery({
-    queryKey: ["inbox", address],
+    queryKey: [
+      "inbox",
+      address,
+      cfg.rpcUrl,
+      cfg.indexerUrl ?? "",
+      cfg.deployedAtBlock.toString(),
+    ],
     enabled: !!address,
     queryFn: async () => {
-      const cfg = getEffectiveConfig();
       const source = cfg.indexerUrl
         ? createIndexerMailSource(cfg.indexerUrl)
         : createRpcMailSource({

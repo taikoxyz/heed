@@ -1,10 +1,16 @@
 import type { ReactNode } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
+import { clearKeys } from "../lib/keys";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
   const { connect, connectors } = useConnect();
   const { disconnect } = useDisconnect();
+
+  function onDisconnect() {
+    clearKeys();
+    disconnect();
+  }
 
   if (!isConnected) {
     return (
@@ -33,7 +39,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
       <header className="flex justify-between items-center p-4 border-b">
         <span className="font-mono text-sm">{address}</span>
         <button
-          onClick={() => disconnect()}
+          onClick={onDisconnect}
           className="text-sm underline text-gray-600"
         >
           Disconnect
