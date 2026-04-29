@@ -1,15 +1,27 @@
 # Heed — Design Spec
 
-**Date:** 2026-04-28
-**Status:** Draft for review
+**Date:** 2026-04-29
+**Status:** Live (unaudited) — contract deployed to Taiko mainnet at [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678) at block `6091023`.
 
 ---
 
 ## Context
 
-Email on Web2 is a centralized, opt-in, spam-saturated medium. EtherMail and similar projects have shown there is appetite for wallet-native messaging, but their actual on-wire protocols aren't openly specified. Heed aims to be a *trustless, address-native messaging primitive* on Taiko: any EVM address can receive mail without opt-in, recipients price their attention via an anti-spam fee, encryption is optional but supported by default when a recipient has published a key, and clients run locally to avoid trusting any hosted service with delegate keys.
+Email on Web2 is a centralized, opt-in, spam-saturated medium. AI agents increasingly act on behalf of humans (releases, alerts, account changes, routine asks) and have no inbox to deliver into without screen-scraping or onboarding to whatever messaging stack each human happens to use. Heed is a **trustless, address-native channel from AI agents to humans**: any EVM address is a mailbox; the recipient prices their attention via an anti-spam fee paid directly to them in ETH; payloads are encrypted with deterministic, recoverable key material derived from the wallet itself; and clients run locally to avoid trusting any hosted service with delegate keys.
 
-The intended outcome of this spec is a single, immutable smart contract deployed on Taiko mainnet, an IPFS payload schema for mail content, a native macOS reference client, and a reference indexer.
+The deployed v1 ships three artifacts: an immutable `Heed.sol` on Taiko mainnet, a TypeScript protocol library (`@heed/core`), and two reference clients — `heed-cli` for agents and `@heed/web` for the human side. An IPFS-pinned envelope schema carries AI-shaped metadata (sender identity claims, urgency, optional CTA, threading).
+
+---
+
+## Anchor scenario: AI agents → human attention
+
+The v1 product anchor is an **open marketplace** where any AI agent can pay to reach any wallet. This sharpens the protocol along three axes that fall out of existing primitives:
+
+1. **Recipient-priced attention.** The fee mechanism in `Heed.sol` makes attention an auctionable resource. Agents pay; recipients keep the ETH. Spam economics flip: the more wallets a sender targets, the more it costs them.
+2. **Address-native delivery.** Agents own wallets; humans own wallets. No new identifier, no opt-in handshake, no platform onboarding.
+3. **Self-claimed agent identity.** Agents declare their identity in the envelope (`name`, `owner_url`, optional `uri`); the recipient's inbox renders the claim and binds it to the sending wallet via a signature. Identity registries (ERC-8004, ENS, DIDs, plain HTTPS) live outside the protocol — Heed defines the envelope; renderers interpret URI schemes.
+
+Other use cases (own-agent companion, intra-org notifications, dapp/DAO alerts) are future-compatible but explicitly not v1 targets.
 
 ---
 
@@ -17,33 +29,69 @@ The intended outcome of this spec is a single, immutable smart contract deployed
 
 - Address-native identity: an EVM address *is* a mailbox; no opt-in to receive.
 - Recipient-priced attention: anti-spam fee in ETH, paid directly to the recipient.
-- Optional encryption with deterministic, recoverable key material derived from the wallet itself.
+- AI-shaped envelope: structured metadata agents emit (title, body, urgency, optional CTA, threading, identity claims).
+- Self-claimed agent identity, signature-bound to the sending wallet; identity registries are out-of-protocol.
+- Optional encryption with deterministic, recoverable key material derived from the wallet.
 - Batch sends with a single transaction, per-mail events, atomic-or-best-effort modes.
 - One-click client setup via funded delegate addresses, scoped per client install.
 - Clients are local-first; the protocol does not depend on any hosted service.
 
 ## Non-Goals
 
-- Mobile clients (out of scope for v1).
+- MCP server in v1 (CLI is sufficient — works for shell-out agents, cron, CI, and modern AI agent frameworks).
+- Push, native, or email notifications.
+- Mobile clients.
+- Compose-from-scratch in the web inbox (tap-to-reply only, in v1 follow-ups).
 - On-chain spam filtering beyond fee + whitelist.
 - Contract upgradeability or governance.
 - Read receipts, delivery confirmations, on-chain threading state.
 - Hosted inbox or centralized indexer as a hard dependency.
-- Hoodi testnet rollout (deploying directly to mainnet; rigor moves into testing/audit).
 - Web2 (Gmail/Yahoo) interop — pure protocol, no SMTP bridge.
+- Agent reputation UI; paid-reply / bounty mechanics.
 
 ---
 
-## Positioning & Strategic Wedge
+## Envelope schema (v1)
 
-Heed is a **protocol primitive**, not a consumer mail product. The closest reference, EtherMail, is a hosted SaaS with a polished web/mobile UX, ad-revenue token economy, and Web2 bridge — Heed does not compete on those axes and will lose if framed that way. Instead, Heed differentiates as **open, censorship-resistant, programmable rails for address-native messaging where attention is priced in ETH that flows directly to the recipient**.
+The on-chain `MailSent` event carries a `contentRef` (32-byte sha256 multihash) pointing at an IPFS payload. The payload is an encrypted lockbox wrapping the envelope JSON.
 
-Two priority use cases shape v1 design and sequencing:
+```
+{
+  v: 1,
+  kind: "agent",
+  from: { name, owner_url, logo_cid?, uri?, sig },
+  title,            // ≤120 chars, plaintext
+  body,             // markdown, ≤16KB before attachments
+  urgency,          // "low" | "normal" | "high" — UI hint only
+  action_url?,      // https only, rendered as primary CTA
+  reply_to?,        // 32-byte content ref of the message being replied to
+  sent_at           // unix seconds, sender-claimed
+}
+```
 
-1. **AI agents and bots.** Agents own wallets, have no humans to opt-in, and benefit from a contract-callable messaging surface. The library-first architecture (`heed-core` TS) is the deliverable they need; a native UI is irrelevant to them.
-2. **Dapp / DAO notifications.** Protocols want to message wallet addresses programmatically — DEX position warnings, DAO announcements, NFT-holder updates. Today they push to Twitter/Discord; with Heed, it's a contract call. The recipient earns the anti-spam fee, making the value flow legible end-to-end.
+`sig` is a **per-field EIP-712 typed-data signature** over the envelope's signed portion — EIP-712's own canonicalization is the canonicalization, no app-level canonical JSON. Domain matches the existing key-derivation domain: `{ name: "Heed", version: "1", chainId, verifyingContract }`. PrimaryType is `Envelope` with nested `EnvelopeFrom`. Snake_case wire fields map to camelCase EIP-712 names; absent optionals default to empty string / zero `bytes32`.
 
-The recipient-earns-ETH-directly model is the protocol's real moat. The reference client UX should make this visible (e.g., "earned 0.04 ETH this month"), not bury it.
+The signature binds the envelope to the sending wallet. **That is the only verified property at the protocol layer.** Everything else in `from` (`name`, `owner_url`, `uri`) is self-claimed; renderers display them as such and may decorate them with verification affordances based on the `uri` scheme.
+
+`@heed/core`'s envelope module exposes `encodeEnvelopeV1`, `decodeEnvelopeV1`, `signEnvelope`, `verifyEnvelope`. The codec validates length limits, https-only `action_url`, and hex-only `sig` / `reply_to`. Bytes-level `encodeEncryptedBytes` / `decodeEncryptedBytes` and a `decodePayload` dispatcher (`envelope | mail | unknown`) sit on top. The legacy `PlaintextPayload` and `encodeEncrypted` / `decodeEncrypted` from the pre-pivot release are retained for backward compatibility.
+
+---
+
+## Identity model
+
+The protocol defines the message envelope. Identity registries live outside the protocol.
+
+`from.uri` is a single free-form string (≤256 chars). Heed does not parse it. Inbox renderers interpret recognized schemes per a pluggable resolver registry; unknown schemes render as raw URI text.
+
+Recommended schemes (non-normative):
+
+- `erc8004:<chain>:<id>` — ERC-8004 agent registry. On-chain registry lookup; on success, render a "verified via 8004" affordance.
+- `https://...` — best-effort favicon + page title fetch.
+- `did:...`, `ens:...`, anything else — supported per-renderer; unknown schemes render the raw URI.
+
+**The web inbox ships with `erc8004:` and `https:` resolvers in v1.** New schemes can be added without changing the resolver shape. **`@heed/core` does not resolve URIs.** It hands the raw string to consumers; resolution lives in renderers.
+
+Heed itself does not register agents on any external registry. Operators bring their own URI from their own tooling and pass it to `heed agent set-uri`.
 
 ---
 
@@ -52,42 +100,38 @@ The recipient-earns-ETH-directly model is the protocol's real moat. The referenc
 ```
                  +-----------------------+         +----------------+
                  | Taiko mainnet         | <-----> | Reference      |
-   web reader -->| Heed.sol         |  logs   | indexer        |
-   macOS app --->| (immutable)           |         | (Ponder + PG)  |
-   AI agent  --->+-----------------------+         +----------------+
-                                ^                      ^
-                                |                      |
+   web reader -->| Heed.sol              |  logs   | indexer        |
+   heed-cli  --->| (immutable)           |         | (Ponder + PG,  |
+                 +-----------------------+         |  optional)     |
+                                ^                  +----------------+
+                                |                      ^
                                 +----------------------+
                                 |
                  +-----------------------+
                  | IPFS (Pinata / any)   |
-                 | mail payload          |
+                 | encrypted envelope    |
                  +-----------------------+
 ```
 
-Five artifacts, sequenced into two delivery phases:
-
-**v1a — protocol-first MVP (the wedge):**
+Three artifacts ship; clients consume the same `@heed/core` library — no duplicated crypto or protocol code.
 
 1. **`Heed.sol`** — single contract, immutable, on Taiko mainnet.
-2. **`heed-core`** — TypeScript library (crypto, encoding, contract bindings, IPFS, sync). The deliverable for AI agents, dapp integrators, and any future client.
-3. **Reference indexer** — Ponder service, optional; clients fall back to RPC.
-4. **`heed-web`** — hosted **read-only web reader**. Wallet connect, in-browser key derivation (no persistence), inbox rendering, mail decryption. No compose, no delegate. Lets any wallet see "you have a Heed inbox" with zero install friction; perfect for showcasing dapp/agent traffic and validating demand.
+2. **`@heed/core`** — TypeScript library: envelope codec, crypto, contract bindings, IPFS, mail sources. The deliverable for any client.
+3. **`heed-cli`** — the agent-side CLI (binary `heed`). Thin wrapper over `@heed/core` for shell-out agents, cron, CI, and modern AI agent frameworks.
+4. **`@heed/web`** — envelope-aware read-only web inbox. Wallet connect, in-browser key derivation (no persistence), envelope rendering with pluggable URI resolvers.
 
-**v1b — power-user native client (after v1a demand signal):**
-
-5. **`Heed.app`** — native macOS app (Tauri 2 + SwiftUI), depends on `heed-core`. Adds compose, delegate-key custody in macOS Keychain, batch send UX, frictionless ongoing send.
-
-The v1a/v1b split keeps time-to-protocol low, lets us measure adoption from the wedge users (agents + dapps) before investing in native UI, and de-risks the macOS effort by validating that demand exists first.
+A reference indexer (Ponder + Postgres) is supported but optional; clients fall back to `eth_getLogs` over RPC.
 
 ---
 
 ## Smart Contract Design
 
+The contract is **immutable**; all sections in this document describe the deployed bytecode. Address: [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678). Deploy block: `6091023`.
+
 ### Constants
 
 ```solidity
-uint32 public immutable MAX_FEE_GWEI;          // set in constructor; recommend 10_000_000 (0.01 ETH)
+uint32 public immutable MAX_FEE_GWEI;          // set in constructor; deployed value 10_000_000 (0.01 ETH)
 ```
 
 ### Storage
@@ -182,7 +226,7 @@ The contract emits *only* `MailSent` events from `sendBatch`; no state variable 
 
 ```solidity
 constructor(uint32 maxFeeGwei) {
-    MAX_FEE_GWEI = maxFeeGwei;   // recommend 10_000_000
+    MAX_FEE_GWEI = maxFeeGwei;   // deployed with 10_000_000
 }
 ```
 
@@ -220,7 +264,7 @@ For each recipient of a logical mail:
 4. `wrappedContentKey = XChaCha20-Poly1305-encrypt(wrapKey, nonce_kx, contentKey)`.
 5. Emit one lockbox entry `{ rcpt, keyNonce, wrapped: ephPub || nonce_kx || wrappedContentKey }`.
 
-The `contentKey` is a single 32-byte symmetric key, fresh per logical mail, used to encrypt the JSON payload via XChaCha20-Poly1305 with a single 24-byte nonce.
+The `contentKey` is a single 32-byte symmetric key, fresh per logical mail, used to encrypt the envelope payload via XChaCha20-Poly1305 with a single 24-byte nonce.
 
 ---
 
@@ -228,28 +272,7 @@ The `contentKey` is a single 32-byte symmetric key, fresh per logical mail, used
 
 The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it as `CIDv1, raw codec, sha256-256`. Clients reconstruct the full CID before fetching.
 
-### Plaintext payload (`scheme` absent → plaintext)
-
-```json
-{
-  "v": 1,
-  "kind": "mail",
-  "from": "0xSender",
-  "to":   ["0xAlice", "0xBob"],
-  "cc":   [],
-  "date": 1735689600,
-  "msgId": "uuid-or-hash",
-  "inReplyTo": "<parent-msgId>",
-  "references": ["<root>", "<parent>"],
-  "subject": "string",
-  "body": { "text": "...", "html": "..." },
-  "attachments": [
-    { "name": "foo.pdf", "cid": "bafy...", "size": 12345, "mime": "application/pdf" }
-  ]
-}
-```
-
-### Encrypted payload (`scheme` present → encrypted lockbox)
+### Encrypted payload (v1)
 
 ```json
 {
@@ -257,21 +280,26 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
   "scheme": 1,
   "nonce": "base64-24",
   "lockboxes": [
-    { "rcpt": "0xAlice", "keyNonce": 3, "wrapped": "base64..." },
-    { "rcpt": "0xBob",   "keyNonce": 1, "wrapped": "base64..." }
+    { "rcpt": "0xAlice", "keyNonce": 3, "wrapped": "base64..." }
   ],
   "ct": "base64..."
 }
 ```
 
-`ct` is the XChaCha20-Poly1305 ciphertext of the plaintext payload (the schema above, without the outer envelope). The receiver locates their `lockboxes[i]` by `rcpt`, regenerates the private key for `keyNonce` from their wallet, unwraps `contentKey`, then decrypts `ct`.
+`ct` is the XChaCha20-Poly1305 ciphertext of the envelope JSON (schema above, without the outer transport envelope). The receiver locates their `lockboxes[i]` by `rcpt`, regenerates the private key for `keyNonce` from their wallet, unwraps `contentKey`, then decrypts `ct`.
 
 `scheme = 1` denotes x25519 + XChaCha20-Poly1305 + HKDF-SHA256 + CIDv1/raw/sha256 multihash. Higher values are reserved for future schemes.
+
+### Plaintext payload
+
+For ad-hoc traffic where encryption is unnecessary (rare in v1), `scheme` is absent and the payload bytes are the envelope JSON directly.
 
 ### Attachments
 
 - Inline (base64 in payload) if total payload < 256 KB.
 - Otherwise external: each attachment is its own IPFS object, encrypted independently with a fresh `contentKey` derived from a per-attachment lockbox embedded in the parent payload.
+
+(Attachment UX is post-v1 in the reference clients.)
 
 ---
 
@@ -280,9 +308,9 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 ### Direct send
 
 1. Client calls `Heed.getInbox(recipient)` → `(feeGwei, keys)`.
-2. Client builds the payload, encrypts via lockbox if `keys[newest].pub != 0`, else plaintext.
-3. Client pins payload to Pinata, gets `contentRef`.
-4. The user's wallet signs and broadcasts `sendBatch([{ recipient, valueGwei, contentRef }], atomic = true)` with `msg.value = valueGwei * 1 gwei`.
+2. Client builds the envelope (signing with the sender wallet's EIP-712 typed-data signer), encrypts it via lockbox if `keys[newest].pub != 0` else plaintext.
+3. Client pins payload to Pinata (or any IPFS pinning service), gets `contentRef`.
+4. The sender wallet signs and broadcasts `sendBatch([{ recipient, valueGwei, contentRef }], atomic = true)` with `msg.value = valueGwei * 1 gwei`.
 
 ### Delegate send (one-click client setup, then frictionless sends)
 
@@ -296,7 +324,8 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 1. The client subscribes to `MailSent` events filtered by `recipient = self`. Default: paginated `eth_getLogs` over a configurable lookback window. Optional: indexer GraphQL.
 2. For each event, fetch `contentRef` from the IPFS gateway.
 3. If the payload contains `scheme`, locate the lockbox entry where `rcpt = self`, re-derive the x25519 private key for that entry's `keyNonce`, unwrap `contentKey`, and decrypt `ct`. Else, render plaintext directly.
-4. **Priority bucketing (client-side, not protocol):**
+4. **Decode** via `@heed/core`'s `decodePayload` dispatcher: returns `envelope | mail | unknown`. For envelopes, verify the signature and check it matches the on-chain sender (`signerMatchesSender`); render the verification status in the UI.
+5. **Priority bucketing (client-side, not protocol):**
    - `valueGwei == requiredFee` → **low**
    - `2 * requiredFee <= valueGwei < 3 * requiredFee` → **medium**
    - `valueGwei >= 3 * requiredFee` → **high**
@@ -306,43 +335,46 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
 
 ## Reference Clients
 
-Two reference clients ship, sequenced as v1a then v1b. Both consume the same `heed-core` TypeScript library — no duplicated crypto or protocol code.
+### `heed-cli` — agent-side CLI
 
-### v1a — `heed-web` (read-only web reader)
+The v1 shipping artifact for agents. Binary: `heed`. Thin wrapper over `@heed/core`.
 
-**Goal:** zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browser, including encrypted mail, without trusting a server with secrets.
+**Commands:**
+
+- `heed setup` — generate or import a wallet, derive the X25519 encryption key, optionally publish on-chain via `Heed.publishKey`. Flags: `--import-private-key`, `--rpc-url`, `--no-publish`, `--force`, `--keystore`.
+- `heed send <to>` — build envelope → sign → encrypt → pin to IPFS → `sendBatch`, paying the recipient's on-chain fee. Required `--title`; optional `--body` / `--body-from-stdin`, `--urgency`, `--action-url`, `--reply-to`, `--rpc-url`, `--dry-run`. Pinning requires `HEED_PINATA_JWT`.
+- `heed inbox` — `listInbox` → fetch CID → decrypt → `decodePayload` → render. Flags: `--since-block`, `--limit`, `--json`, `--watch`, `--rpc-url`, `--gateway`.
+- `heed agent {set-name|set-owner-url|set-uri|set-logo-cid|show}` — manage envelope identity claims stored locally in config.
+- `heed key show` — print the wallet address derived from the loaded private key.
+- `heed config {get|set|path}` — read/write CLI configuration (network, identity, key nonce).
+
+**Key storage:** file-based by default at `$XDG_CONFIG_HOME/heed/wallet.json` (or `~/.config/heed/wallet.json`), mode 0600. Override the config home with `HEED_HOME=<dir>`. `HEED_PRIVATE_KEY` env-var override for headless agents / CI / sandboxed environments — auto-selected when set, no persistence. Selectable per-command via `--keystore auto|file|env`. Native OS keychain integration is intentionally deferred to a follow-up; the file + env-var pattern matches `~/.aws/credentials` and `gh auth`.
+
+### `@heed/web` — envelope-aware read-only inbox
+
+Goal: zero-install proof-of-protocol. Any wallet sees its Heed inbox in a browser, including encrypted mail, without trusting a server with secrets.
 
 **Stack**
 
 - React + Vite, served as static assets. No backend (queries RPC / indexer directly from the browser).
-- **`heed-core`** for all protocol logic.
+- `@heed/core` for all protocol logic.
 - Wallet connect via WalletConnect / injected (Frame, Rabby, MetaMask).
 - Encrypted mail: when the user wants to decrypt, the wallet signs the EIP-712 typed data (one signature per `keyNonce`); the derived x25519 private key lives in browser memory only — never persisted, never sent off-machine.
-- No compose. No delegate. Send happens in v1b.
 
-**Distribution**
+**Envelope rendering**
 
-- Hosted at a canonical URL (e.g., `read.heed.xyz`).
-- Static bundle additionally pinned to IPFS for users who want to verify the deployed code or self-serve.
-- Strict CSP, subresource integrity, reproducible build.
+- `EnvelopeCard` renders sender identity (claimed `name` + `owner_url` hostname link + URI badge), urgency, body, action CTA, fee, reply-to, and live signer-vs-sender verification (`signerMatchesSender`).
+- `MailCard` is a dispatcher (`envelope | legacy mail | unknown`).
+- Pluggable URI resolver registry under `web/src/lib/uri/`. Built-ins: `erc8004:` and `https:`. Unknown schemes render as raw URI captions.
+- Legacy `PlaintextPayload` mail still renders via the same dispatcher for backward compatibility.
 
-### v1b — `Heed.app` (native macOS, compose + delegates)
-
-**Goal:** frictionless inbox for power users — compose, batch send, delegate-key custody, no wallet popup per send.
-
-**Stack**
-
-- **Tauri 2** wrapper, native macOS bundle.
-- **SwiftUI** views for the main surfaces (inbox, compose, settings, key/delegate management).
-- **`heed-core`** (TypeScript): same library as the web reader.
-- **macOS Keychain** (via the Tauri Keychain plugin) for the delegate private key — encrypted at rest, accessed via Touch ID / system password gate.
+**Out-of-scope for the read-only reader (in this PR):** tap-to-reply inline composer, thread view by `reply_to` chain. These are W3 phase 2 follow-ups; the reader currently surfaces `reply_to` in the card header but does not group threads.
 
 ### Configuration (per-install, persisted)
 
 - RPC endpoint (default: Taiko mainnet public RPC).
 - IPFS gateway URL (default: Pinata gateway).
-- Pinata API JWT (user-provided; never embedded in build) — v1b only; v1a is read-only.
-- Max anti-spam fee willing to send (default: `MAX_FEE_GWEI`) — v1b only.
+- Pinata API JWT (user-provided; never embedded in build) — required for sends; reading does not need it.
 - Indexer endpoint (optional).
 
 ### MailSource interface
@@ -388,31 +420,36 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 
 ---
 
-## Deployment Plan
+## Deployment
 
-### v1a — protocol + read-only reader
+### What shipped
 
-1. **Foundry setup.** Repo skeleton with `forge` + `viem`. Lock toolchain versions.
-2. **Contract development & test.**
-   - Unit tests for every function and revert path.
-   - Property/fuzz tests for batch send accounting (`sum(values) == msg.value - refund`, etc.).
-   - Tests for delegate dual-revocation, key rotation slot logic, fee cap enforcement.
-3. **Independent audit.** Required before mainnet deploy — skipping testnet means no public shakedown.
-4. **Mainnet deploy.** Single deployment; record the address in `deployments/mainnet.json`. Verify on Taikoscan.
-5. **`heed-core` library publish** to npm.
-6. **Reference indexer** ships as a Docker image; the reference hosted instance is optional.
-7. **`heed-web` first release** — static deploy + IPFS-pinned bundle. Public URL.
-8. **Demand signal window (≈ 60 days).** Track agent + dapp integrations, web-reader connects, message volume.
+1. **Foundry repo** with `forge` + `viem`. Toolchain locked.
+2. **Contract** developed and tested: ≥ 95% line / 100% branch coverage on `Heed.sol`. Property/fuzz tests on batch-send accounting; tests for delegate dual-revocation, key rotation, fee cap.
+3. **Mainnet deploy** at block `6091023`. Address `0x08f32278…5678`. Verified on Taikoscan and Blockscout. Deployment record: [`deployments/mainnet.json`](../deployments/mainnet.json).
+4. **`@heed/core`** TypeScript library (envelope codec, X25519 lockbox, IPFS, mail sources, write client) — 67 tests passing. **Not yet on npm.**
+5. **`heed-cli`** package (binary `heed`) — 80 tests passing. **Not yet on npm.**
+6. **`@heed/web`** envelope-aware inbox — 18 tests passing.
 
-### v1b — native client (gated on v1a demand)
+### Open / post-merge
 
-9. **`Heed.app` first release** via GitHub Releases + Sparkle update channel. Re-uses already-deployed contract and shipped `heed-core`.
+- **Audit.** Contract is currently unaudited. An external review is required before any wider distribution.
+- **npm publish** for `@heed/core` and `heed-cli`.
+- **Mainnet smoke** (release-only): documented in [`docs/release-smoke.md`](./release-smoke.md). Two real wallets, one real send, one real reply, recorded against each release tag.
+- **Reference indexer** (Ponder) — schema and Docker image not yet shipped; clients work without it via `RpcMailSource`.
+- **`heed-web` hosted deployment** — public URL still TBD; will land in `DEPLOYED.md` when live.
+
+### v1 follow-ups (out of this design's scope, on the v1 backlog)
+
+- W3 phase 2: tap-to-reply + thread view in the web inbox.
+- W3 phase 3: AI-first landing copy / positioning rewrite for the web SPA.
+- npm publish of `heed-cli` + `@heed/core`.
 
 ---
 
 ## Testing Strategy
 
-Going straight to mainnet means we lose the public testnet rehearsal. Compensating measures:
+The contract is immutable; testing rigor compensates for the absence of a public testnet rehearsal.
 
 - **Foundry test coverage** ≥ 95% line / 100% branch on `Heed.sol`, including:
   - Atomic vs. best-effort branch correctness with mixed success/failure.
@@ -421,10 +458,12 @@ Going straight to mainnet means we lose the public testnet rehearsal. Compensati
   - Key slot rotation invariant: slots always hold the two newest published nonces.
   - Fee cap enforcement at `setFee`.
 - **Invariant tests** (Foundry): "no state changes from `sendBatch`" assertion.
-- **Fork tests** against the Taiko mainnet RPC (gas profiling + integration sanity).
-- **End-to-end client test:** scripted `Heed.app` build sends/receives encrypted mail through a local Anvil chain.
-- **Independent third-party audit** before mainnet deploy.
-- **Bug bounty** (Immunefi or similar) for the first six months post-launch.
+- **Fork tests** against Taiko mainnet RPC (gas profiling + integration sanity).
+- **TypeScript unit tests** across `@heed/core`, `heed-cli`, `@heed/web` — 165 tests at v1.
+- **Anvil-fork e2e** (`scripts/e2e.sh`): redeploys `Heed.sol` to an anvil fork of Taiko mainnet; drives `heed-cli` end-to-end (setup → publishKey → send → inbox); enables the Playwright test in `web/e2e/inbox.spec.ts` to load the inbox against the fork and assert envelope card rendering.
+- **Manual mainnet smoke** before each release tag — see [`docs/release-smoke.md`](./release-smoke.md). Two real wallets, send + reply, tx hashes recorded.
+- **Independent third-party audit** — required before npm publish or wider distribution.
+- **Bug bounty** — planned post-audit.
 
 ---
 
@@ -432,59 +471,50 @@ Going straight to mainnet means we lose the public testnet rehearsal. Compensati
 
 | Risk | Mitigation |
 |---|---|
-| Direct mainnet without testnet exposes users to bugs we can't patch (immutable contract). | Audit + bug bounty + extensive Foundry testing. Bug fixes ship as v2 contract; client supports both. |
+| Direct mainnet without testnet exposes users to bugs we can't patch (immutable contract). | Audit pending; Foundry coverage and the anvil-fork e2e are the current line of defense. Bug fixes ship as v2 contract; clients support both. |
 | Pinata centralization for default pinning. | Client supports any IPFS pinning service; user supplies own JWT. Doc explicitly recommends self-hosted IPFS for high-value users. |
-| Delegate key compromise on a user's macOS install. | Stored in Keychain, system-gated. Funding is small (≈0.01 ETH default). Both owner and delegate can revoke. A compromised delegate cannot withdraw owner funds — only spend its own pre-funded balance on mail sends. |
+| Self-claimed envelope identity could mislead recipients. | Inbox UI distinguishes the verified property (signing wallet) from claimed properties (name, owner_url, uri). URI resolvers can decorate with verification affordances when the operator opts into a registry. |
+| Delegate key compromise on a user's machine. | Owner and delegate can both revoke. Funding is small (e.g., 0.01 ETH default). A compromised delegate cannot withdraw owner funds — only spend its own pre-funded balance on mail sends. |
 | Recipient address is a contract that reverts on `receive`. | Best-effort batch skips and refunds; atomic batch reverts. Behavior documented. |
 | Sender pays unbounded `valueGwei` by mistake. | Client enforces a "max anti-spam fee to send" config; UI confirmation for fees above threshold. |
 | Fee griefing: recipient sets max fee right before someone sends. | Sender always reads fee just-in-time; the tx still succeeds if `valueGwei >= fee`. Client may warn if fee changed since compose. |
-| Dropped IPFS content (no pinning enforcement). | Doc emphasizes sender's responsibility; client has "rehost / re-pin" tooling. |
+| Dropped IPFS content (no pinning enforcement). | Doc emphasizes sender's responsibility; client has rehost/re-pin tooling planned. |
 
 ---
 
 ## Out of Scope (this spec)
 
-- Mobile client (iOS / Android).
+- MCP server.
+- Push, native, or email notifications.
+- Mobile clients (iOS / Android).
+- Compose-from-scratch in the web inbox.
+- Agent reputation UI; paid-reply / bounty mechanics.
+- Hosted inbox or any centralized dependency.
 - Read receipts, delivery confirmations.
 - On-chain spam filtering beyond fee + whitelist.
 - Contract upgradeability or governance.
-- Hoodi testnet phase.
+- Web2 (SMTP) interop.
 - Mailing-list / multicast / group-chat primitives.
 - Forward-secrecy ratchet.
 
 ## Open Questions / Future Work
 
-- WebAuthn / passkey-bound delegate key unlock (replaces passphrase, follow-up).
+- WebAuthn / passkey-bound delegate key unlock.
 - Federation / discovery layer for multiple reference indexers.
-- ENS-name resolution for the `to:` field in the compose UI.
+- ENS / DID resolution affordances in the web inbox URI registry.
 - Optional second scheme: post-quantum hybrid lockbox (X25519 + ML-KEM-768).
+- MCP server as an alternative to the CLI for tighter agent-framework integration.
 
 ---
 
 ## Verification
 
-End-to-end checks at completion of implementation:
+End-to-end checks at the v1 milestone:
 
-1. Foundry tests pass: `forge test -vvv` with coverage at the thresholds above.
+1. Foundry tests pass: `forge test -vvv` with the coverage thresholds above.
 2. Static analysis: `slither .` clean (or documented exceptions).
-3. Mainnet fork test: send a mail, decrypt via lockbox, confirm event emitted with correct fields.
-4. `heed-core` Vitest suite green for crypto round-trips, payload encode/decode, lockbox unwrap with rotated keys.
-5. `Heed.app` smoke flow on Anvil: register delegate → send encrypted batch → receive on a second wallet → decrypt → reply with priority `medium` (2× fee).
-6. Audit report addressed; all High/Critical findings fixed before deploy.
-
----
-
-## Critical files (to be created — greenfield)
-
-**v1a:**
-- `contracts/Heed.sol`
-- `contracts/test/Heed.t.sol`
-- `contracts/script/Deploy.s.sol`
-- `core/src/{crypto,payload,contract,ipfs,source}/*` — TypeScript core
-- `core/test/*` — Vitest
-- `indexer/{ponder.config.ts,schema.graphql,src/*}`
-- `web/src/*` — React + Vite read-only reader
-- `deployments/mainnet.json`
-
-**v1b:**
-- `app/{src-tauri,src,swift}/*` — Tauri shell + SwiftUI views
+3. Workspace tests green: `npm --workspace @heed/core test && npm --workspace heed-cli test && npm --workspace @heed/web test` — 165/165.
+4. Workspace builds + typechecks green across all three packages.
+5. **Anvil-fork e2e:** `npm run e2e` — fork starts, `Heed.sol` redeploys, CLI sends a message, web inbox renders the envelope card with verified signer, asserts pass, fork cleaned up.
+6. Mainnet smoke (release-only): two wallets, one real send, one real reply, verified in the web app and `heed inbox`. Tx hashes recorded in [`DEPLOYED.md`](../DEPLOYED.md) under the "Release smokes" table.
+7. Audit findings addressed; all High/Critical issues resolved before npm publish.
