@@ -16,14 +16,10 @@ describe("HEED_ABI", () => {
       "getInboxes",
       "feeGwei",
       "trusts",
-      "delegateOwner",
       "publishKey",
       "setFee",
       "trust",
       "untrust",
-      "registerDelegate",
-      "revokeDelegate",
-      "revokeMyself",
       "sendBatch",
     ]) {
       expect(fnNames.has(required), `missing function: ${required}`).toBe(true);
@@ -39,7 +35,6 @@ describe("createReadClient", () => {
     expect(typeof c.getInboxes).toBe("function");
     expect(typeof c.feeGwei).toBe("function");
     expect(typeof c.trusts).toBe("function");
-    expect(typeof c.delegateOwner).toBe("function");
   });
 });
 
@@ -52,9 +47,6 @@ describe("createWriteClient", () => {
     expect(typeof c.setFee).toBe("function");
     expect(typeof c.trust).toBe("function");
     expect(typeof c.untrust).toBe("function");
-    expect(typeof c.registerDelegate).toBe("function");
-    expect(typeof c.revokeDelegate).toBe("function");
-    expect(typeof c.revokeMyself).toBe("function");
     expect(typeof c.sendBatch).toBe("function");
   });
 });

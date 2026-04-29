@@ -1,6 +1,7 @@
 {
   "name": "heed-monorepo",
   "private": true,
+  "type": "module",
   "workspaces": ["core-lib", "web", "cli"],
   "scripts": {
     "build:core": "npm --workspace @heed/core run build",
@@ -8,6 +9,10 @@
     "build:cli": "npm --workspace heed-cli run build",
     "test:core": "npm --workspace @heed/core run test",
     "test:web": "npm --workspace @heed/web run test",
-    "test:cli": "npm --workspace heed-cli run test"
+    "test:cli": "npm --workspace heed-cli run test",
+    "e2e": "bash scripts/e2e.sh"
+  },
+  "devDependencies": {
+    "tsx": "^4.21.0"
   }
 }

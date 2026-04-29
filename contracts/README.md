@@ -35,6 +35,8 @@ Full ABI in [`out/Heed.sol/Heed.json`](./out) after `forge build`. Interface spe
 | `sendBatch(mails, atomic)` | Send N mails in one tx. `atomic = true` reverts on any failure; `atomic = false` skips failures and refunds unspent value. |
 | `getInbox(addr)` / `getInboxes(addrs)` | Read fee + key slots in one call (single or batch). |
 
+> *`registerDelegate` / `revokeDelegate` / `revokeMyself` and the corresponding `DelegateRegistered` / `DelegateRevoked` events are **not used by v1 clients** (`@heed/core`, `heed-cli`, `web`). They remain on-chain for future clients.*
+
 Events: `MailSent`, `KeyPublished`, `FeeUpdated`, `Trusted`, `DelegateRegistered`, `DelegateRevoked`.
 
 ## Quick interaction (cast)
