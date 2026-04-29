@@ -1,14 +1,20 @@
 import { useAccount, useSignTypedData } from "wagmi";
 import {
-  decodeEncrypted,
+  decodeEncryptedBytes,
+  decodePayload,
   digestToCid,
   fetchCid,
   KEY_TYPED_DATA,
-  type EncryptedPayload,
-  type PlaintextPayload,
+  type DecodedPayload,
 } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
 import { evictKey, getCachedKey, putKey } from "../lib/keys";
+
+interface EncryptedShape {
+  v: 1;
+  scheme: 1;
+  lockboxes: { rcpt: string; keyNonce: number; wrapped: string }[];
+}
 
 export function useMailDecryption() {
   const { address } = useAccount();
@@ -17,7 +23,7 @@ export function useMailDecryption() {
   return async function decrypt(
     contentRefHex: `0x${string}`,
     options: { force?: boolean } = {},
-  ): Promise<PlaintextPayload> {
+  ): Promise<DecodedPayload> {
     if (!address) throw new Error("no wallet connected");
 
     const cfg = getEffectiveConfig();
@@ -25,19 +31,14 @@ export function useMailDecryption() {
     const cid = digestToCid(digest);
     const bytes = await fetchCid(cid, cfg.ipfsGateway);
 
-    const parsed = JSON.parse(new TextDecoder().decode(bytes)) as
-      | PlaintextPayload
-      | EncryptedPayload;
-
-    if (isPlaintext(parsed)) return parsed;
+    const outer = tryParseJson(bytes);
+    if (!isEncryptedShape(outer)) {
+      return decodePayload(bytes);
+    }
 
     const me = address.toLowerCase();
-    const lockbox = parsed.lockboxes.find(
-      (l) => l.rcpt.toLowerCase() === me,
-    );
-    if (!lockbox) {
-      throw new Error("no lockbox for this address");
-    }
+    const lockbox = outer.lockboxes.find((l) => l.rcpt.toLowerCase() === me);
+    if (!lockbox) throw new Error("no lockbox for this address");
 
     if (options.force) evictKey(address, lockbox.keyNonce);
 
@@ -52,18 +53,23 @@ export function useMailDecryption() {
       sk = putKey(address, lockbox.keyNonce, sig);
     }
 
-    return decodeEncrypted(bytes, {
-      rcpt: address,
-      keyNonce: lockbox.keyNonce,
-      sk,
-    });
+    const inner = decodeEncryptedBytes(bytes, { rcpt: address, keyNonce: lockbox.keyNonce, sk });
+    return decodePayload(inner);
   };
 }
 
-function isPlaintext(
-  p: PlaintextPayload | EncryptedPayload,
-): p is PlaintextPayload {
-  return (p as PlaintextPayload).kind === "mail";
+function isEncryptedShape(value: unknown): value is EncryptedShape {
+  if (value === null || typeof value !== "object") return false;
+  const v = value as Record<string, unknown>;
+  return v.v === 1 && v.scheme === 1 && Array.isArray(v.lockboxes);
+}
+
+function tryParseJson(bytes: Uint8Array): unknown {
+  try {
+    return JSON.parse(new TextDecoder().decode(bytes));
+  } catch {
+    return null;
+  }
 }
 
 function hexToBytes(h: string) {
