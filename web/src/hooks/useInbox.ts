@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { createPublicClient, http } from "viem";
 import { taiko } from "viem/chains";
@@ -8,7 +8,7 @@ import { getEffectiveConfig } from "../lib/settings";
 export function useInbox() {
   const { address } = useAccount();
   const cfg = getEffectiveConfig();
-  return useQuery({
+  return useInfiniteQuery({
     queryKey: [
       "inbox",
       address,
@@ -17,7 +17,8 @@ export function useInbox() {
       cfg.deployedAtBlock.toString(),
     ],
     enabled: !!address,
-    queryFn: async () => {
+    initialPageParam: undefined as bigint | undefined,
+    queryFn: async ({ pageParam }) => {
       const source = cfg.indexerUrl
         ? createIndexerMailSource(cfg.indexerUrl)
         : createRpcMailSource({
@@ -28,7 +29,8 @@ export function useInbox() {
             contract: cfg.contractAddress,
             deployedAtBlock: cfg.deployedAtBlock,
           });
-      return source.listInbox(address!, undefined, 100);
+      return source.listInboxPage(address!, { before: pageParam, limit: 100 });
     },
+    getNextPageParam: (last) => last.nextCursor,
   });
 }

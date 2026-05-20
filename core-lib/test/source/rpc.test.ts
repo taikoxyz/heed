@@ -60,7 +60,7 @@ describe("createRpcMailSource", () => {
     expect(result[0]?.blockTimestamp).toBe(1700000002n);
   });
 
-  it("passes sinceBlock, applies limit via slice, returns descending order", async () => {
+  it("listInbox passes sinceBlock and limit and returns descending array", async () => {
     const logs = Array.from({ length: 5 }, (_, i) => ({
       transactionHash: `0x${i}`,
       blockNumber: BigInt(i),
@@ -78,6 +78,59 @@ describe("createRpcMailSource", () => {
       expect.objectContaining({ fromBlock: 10n })
     );
     expect(result.map((m) => m.blockNumber)).toEqual([4n, 3n, 2n]);
+  });
+
+  it("listInboxPage passes sinceBlock, applies limit via slice, returns descending order with cursor", async () => {
+    const logs = Array.from({ length: 5 }, (_, i) => ({
+      transactionHash: `0x${i}`,
+      blockNumber: BigInt(i),
+      args: { sender: "0xS", recipient: "0xR", contentRef: "0xCR", valueGwei: BigInt(i) },
+    }));
+    const fakeClient = {
+      getLogs: vi.fn(async () => logs),
+      getBlock: vi.fn(async ({ blockNumber }: { blockNumber: bigint }) => fakeBlock(blockNumber, blockNumber * 10n)),
+      readContract: vi.fn(),
+    } as any;
+    const src = createRpcMailSource({ client: fakeClient, contract: DEAD_CONTRACT, deployedAtBlock: 0n });
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { sinceBlock: 10n, limit: 3 });
+    expect(items).toHaveLength(3);
+    expect(fakeClient.getLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ fromBlock: 10n })
+    );
+    expect(items.map((m) => m.blockNumber)).toEqual([4n, 3n, 2n]);
+    expect(nextCursor).toBe(2n);
+  });
+
+  it("listInboxPage pages with before cursor (toBlock = before-1) and stops when fully drained", async () => {
+    const logs = [
+      { transactionHash: "0x1", blockNumber: 1n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 1n } },
+      { transactionHash: "0x2", blockNumber: 2n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 2n } },
+    ];
+    const fakeClient = {
+      getLogs: vi.fn(async () => logs),
+      getBlock: vi.fn(async ({ blockNumber }: { blockNumber: bigint }) => fakeBlock(blockNumber, blockNumber)),
+      readContract: vi.fn(),
+    } as any;
+    const src = createRpcMailSource({ client: fakeClient, contract: DEAD_CONTRACT, deployedAtBlock: 0n });
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { before: 5n, limit: 10 });
+    expect(fakeClient.getLogs).toHaveBeenCalledWith(
+      expect.objectContaining({ toBlock: 4n })
+    );
+    expect(items.map((m) => m.blockNumber)).toEqual([2n, 1n]);
+    expect(nextCursor).toBeUndefined();
+  });
+
+  it("listInboxPage short-circuits when before cursor is at or below deployedAtBlock", async () => {
+    const fakeClient = {
+      getLogs: vi.fn(),
+      getBlock: vi.fn(),
+      readContract: vi.fn(),
+    } as any;
+    const src = createRpcMailSource({ client: fakeClient, contract: DEAD_CONTRACT, deployedAtBlock: 100n });
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { before: 100n });
+    expect(items).toEqual([]);
+    expect(nextCursor).toBeUndefined();
+    expect(fakeClient.getLogs).not.toHaveBeenCalled();
   });
 
   it("dedupes getBlock calls per unique block number", async () => {

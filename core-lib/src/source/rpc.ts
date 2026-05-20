@@ -2,7 +2,7 @@
 // FEATURE: Mail source abstraction layer for RPC and indexer backends
 
 import { type PublicClient, parseAbiItem, type Address } from "viem";
-import type { MailSource } from "./types";
+import type { MailSource, MailPage } from "./types";
 import type { MailEvent } from "../types";
 import { createReadClient } from "../contract/client";
 
@@ -25,24 +25,37 @@ export function createRpcMailSource(opts: {
     return logs.map((l) => toEvent(l, tsByBlock.get(l.blockNumber) ?? 0n));
   }
 
+  async function page(
+    args: object, sinceBlock?: bigint, limit = 100, before?: bigint,
+  ): Promise<MailPage> {
+    const toBlock = before !== undefined ? before - 1n : undefined;
+    if (toBlock !== undefined && toBlock < opts.deployedAtBlock) {
+      return { items: [] };
+    }
+    const logs = await opts.client.getLogs({
+      address: opts.contract, event: MAIL_SENT,
+      args,
+      fromBlock: sinceBlock ?? opts.deployedAtBlock,
+      ...(toBlock !== undefined ? { toBlock } : {}),
+    });
+    const recent = logs.slice(-limit);
+    const items = (await attachTimestamps(recent)).reverse();
+    const hasMore = logs.length > recent.length && items.length > 0;
+    return hasMore ? { items, nextCursor: items[items.length - 1]!.blockNumber } : { items };
+  }
+
   return {
     async listInbox(addr, since, limit) {
-      const logs = await opts.client.getLogs({
-        address: opts.contract, event: MAIL_SENT,
-        args: { recipient: addr },
-        fromBlock: since ?? opts.deployedAtBlock,
-      });
-      const recent = logs.slice(-(limit ?? 100));
-      return (await attachTimestamps(recent)).reverse();
+      return (await page({ recipient: addr }, since, limit)).items;
     },
     async listOutbox(addr, since, limit) {
-      const logs = await opts.client.getLogs({
-        address: opts.contract, event: MAIL_SENT,
-        args: { sender: addr },
-        fromBlock: since ?? opts.deployedAtBlock,
-      });
-      const recent = logs.slice(-(limit ?? 100));
-      return (await attachTimestamps(recent)).reverse();
+      return (await page({ sender: addr }, since, limit)).items;
+    },
+    listInboxPage(addr, o = {}) {
+      return page({ recipient: addr }, o.sinceBlock, o.limit, o.before);
+    },
+    listOutboxPage(addr, o = {}) {
+      return page({ sender: addr }, o.sinceBlock, o.limit, o.before);
     },
     async getInbox(addr) { return reader.getInbox(addr); },
     subscribe(addr, on) {
