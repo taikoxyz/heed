@@ -1,6 +1,6 @@
 import { matchErc8004, resolveErc8004 } from "./erc8004";
 import { matchHttps, resolveHttps } from "./https";
-import type { ResolvedIdentity, UriMatcher, UriResolver } from "./types";
+import type { ResolvedIdentity, UriMatcher, UriResolver, UriResolverContext } from "./types";
 
 interface RegisteredResolver {
   match: UriMatcher;
@@ -13,9 +13,9 @@ export function registerResolver(match: UriMatcher, resolve: UriResolver): void 
   registry.push({ match, resolve });
 }
 
-export async function resolveUri(uri: string): Promise<ResolvedIdentity> {
+export async function resolveUri(uri: string, ctx?: UriResolverContext): Promise<ResolvedIdentity> {
   for (const r of registry) {
-    if (r.match(uri)) return r.resolve(uri);
+    if (r.match(uri)) return r.resolve(uri, ctx);
   }
   return { raw: uri, source: "unknown", verified: false };
 }
@@ -31,4 +31,4 @@ export function registerDefaultResolvers(): void {
 
 registerDefaultResolvers();
 
-export type { ResolvedIdentity, UriMatcher, UriResolver } from "./types";
+export type { ResolvedIdentity, UriMatcher, UriResolver, UriResolverContext } from "./types";
