@@ -1,30 +1,66 @@
-import { test, expect } from "@playwright/test";
+import { readFileSync } from "node:fs";
+import { test, expect, type Page } from "@playwright/test";
+import { STATE_FILE } from "./global-setup";
+import { walletStubInit, type WalletStubData } from "./wallet-stub";
+import { bufferPolyfillInit } from "./buffer-polyfill";
 
-// Skipped pending a wallet-stub fixture. The chain + IPFS halves of the harness
-// now exist:
-//
-//   - Local: `scripts/e2e.sh` (anvil + forge create + IPFS stub)
-//   - Fork:  `scripts/e2e-fork.sh` (anvil fork of Taiko mainnet, deployed Heed.sol)
-//
-// To enable this test:
-//
-//   1. Use `scripts/e2e-fork.sh` as a Playwright `globalSetup`: spin anvil fork,
-//      publish keys, send alice → bob, capture { rpcUrl, contractAddress,
-//      deployedAtBlock, gatewayUrl, bobPrivateKey }.
-//   2. Inject captured values via VITE_HEED_ADDRESS / VITE_TAIKO_RPC /
-//      VITE_DEPLOYED_AT_BLOCK / VITE_IPFS_GATEWAY in playwright.config.ts's
-//      `webServer.env`.
-//   3. Inject a window.ethereum stub backed by bob's anvil account before
-//      `page.goto("/")`. The wagmi `injected` connector will pick it up.
-//   4. Auto-sign the EIP-712 typed data prompt through the stub so the
-//      in-browser X25519 derivation completes and the inbox renders.
-//   5. Remove the test.skip below and uncomment the assertions.
-//
-// See docs/plans/2026-04-29-e2e-mainnet-fork.md for the full plan.
-test.skip("inbox renders alice's envelope card after wallet connect", async ({ page }) => {
+interface State {
+  recipient: string;
+  sender: string;
+  matchTitle: string;
+  matchBody: string;
+  matchActionUrl: string;
+  mismatchTitle: string;
+  mismatchBody: string;
+  wallet: WalletStubData;
+}
+
+const state: State = JSON.parse(readFileSync(STATE_FILE, "utf8"));
+
+async function connectAndOpenAll(page: Page): Promise<void> {
+  await page.addInitScript(bufferPolyfillInit());
+  await page.addInitScript(walletStubInit(state.wallet));
   await page.goto("/");
-  await page.getByText("Injected").click();
+  // The wallet gate renders one button per connector; click the first.
+  await page.getByText("Connect a wallet to view your inbox.").waitFor();
+  await page.locator("button").first().click();
+  await expect(page.getByText(state.recipient)).toBeVisible();
+
+  // Opening a card replaces its "Open" button with the decrypted content, so
+  // repeatedly click the first remaining one until none are left. Wait for the
+  // inbox query to populate the list before counting.
+  const openButtons = page.getByRole("button", { name: "Open" });
+  await expect(openButtons.first()).toBeVisible();
+  for (let remaining = await openButtons.count(); remaining > 0; remaining--) {
+    await openButtons.first().click();
+    await expect(openButtons).toHaveCount(remaining - 1);
+  }
+}
+
+test("decrypts the seeded envelope and shows a matching signer badge", async ({
+  page,
+}) => {
+  await connectAndOpenAll(page);
+
+  await expect(page.getByText(state.matchTitle)).toBeVisible();
+  await expect(page.getByText(state.matchBody)).toBeVisible();
   await expect(page.getByText("ACME Alerts")).toBeVisible();
-  await expect(page.getByText("deploy succeeded")).toBeVisible();
-  await expect(page.getByRole("link", { name: /releases\/1234/ })).toBeVisible();
+  await expect(
+    page.locator(`a[href="${state.matchActionUrl}"]`),
+  ).toBeVisible();
+  await expect(
+    page.getByText("signature matches sender", { exact: false }),
+  ).toBeVisible();
+});
+
+test("flags the spoofed envelope with a signer mismatch warning", async ({
+  page,
+}) => {
+  await connectAndOpenAll(page);
+
+  await expect(page.getByText(state.mismatchTitle)).toBeVisible();
+  await expect(page.getByText(state.mismatchBody)).toBeVisible();
+  await expect(
+    page.getByText("signer does not match sender wallet", { exact: false }),
+  ).toBeVisible();
 });
