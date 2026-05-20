@@ -2,6 +2,9 @@ import { useState } from "react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
 import { EnvelopeCard } from "./EnvelopeCard";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function MailCard({
   mail,
@@ -31,40 +34,48 @@ export function MailCard({
   const counterpartyLabel = direction === "sent" ? "to" : "from";
 
   return (
-    <li className="p-4 hover:bg-gray-50">
-      <div className="text-sm text-gray-500">
-        {counterpartyLabel} <span className="font-mono">{counterparty}</span>
-      </div>
-      <div className="text-xs text-gray-500">
-        {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei · ref{" "}
-        <code>{mail.contentRef.slice(0, 10)}…</code>
-      </div>
-
-      {content ? (
-        <div className="mt-2">{renderDecoded(content, mail)}</div>
-      ) : (
-        <button
-          onClick={() => open(false)}
-          disabled={busy}
-          className="mt-2 underline text-sm disabled:opacity-50"
-        >
-          {busy ? "Decrypting…" : "Open"}
-        </button>
-      )}
-
-      {error && (
-        <div className="mt-1 text-xs text-red-600 space-y-1">
-          <div className="break-words">{error}</div>
-          <button
-            onClick={() => open(true)}
-            disabled={busy}
-            className="underline text-red-700"
-          >
-            Re-sign and retry
-          </button>
+    <Card size="sm">
+      <CardContent className="space-y-2">
+        <div className="text-sm text-muted-foreground">
+          {counterpartyLabel} <span className="font-mono">{counterparty}</span>
         </div>
-      )}
-    </li>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary">
+            {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei
+          </Badge>
+          <span>
+            ref <code>{mail.contentRef.slice(0, 10)}…</code>
+          </span>
+        </div>
+
+        {content ? (
+          <div>{renderDecoded(content, mail)}</div>
+        ) : (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => open(false)}
+            disabled={busy}
+          >
+            {busy ? "Decrypting…" : "Open"}
+          </Button>
+        )}
+
+        {error && (
+          <div className="space-y-1 text-xs text-destructive">
+            <div className="break-words">{error}</div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => open(true)}
+              disabled={busy}
+            >
+              Re-sign and retry
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -75,13 +86,17 @@ function renderDecoded(content: DecodedPayload, mail: MailEvent) {
   if (content.kind === "mail") {
     return (
       <div className="space-y-1">
-        <div className="text-xs text-gray-500">legacy mail · {content.mail.subject}</div>
-        <pre className="text-xs whitespace-pre-wrap font-sans">{content.mail.body.text}</pre>
+        <div className="text-xs text-muted-foreground">
+          legacy mail · {content.mail.subject}
+        </div>
+        <pre className="text-xs whitespace-pre-wrap font-sans">
+          {content.mail.body.text}
+        </pre>
       </div>
     );
   }
   return (
-    <div className="text-xs text-gray-500">
+    <div className="text-xs text-muted-foreground">
       unknown payload — {content.bytes.length} bytes
     </div>
   );

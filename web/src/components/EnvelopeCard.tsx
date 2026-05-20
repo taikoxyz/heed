@@ -6,11 +6,17 @@ import {
 } from "@heed/core";
 import { resolveUri, type ResolvedIdentity } from "../lib/uri";
 import { getEffectiveConfig } from "../lib/settings";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
-const URGENCY_BADGE: Record<Envelope["urgency"], string> = {
-  low: "bg-gray-100 text-gray-600",
-  normal: "bg-blue-50 text-blue-700",
-  high: "bg-red-50 text-red-700",
+const URGENCY_VARIANT: Record<
+  Envelope["urgency"],
+  "secondary" | "outline" | "destructive"
+> = {
+  low: "secondary",
+  normal: "outline",
+  high: "destructive",
 };
 
 export function EnvelopeCard({ envelope, mail }: { envelope: Envelope; mail: MailEvent }) {
@@ -56,46 +62,45 @@ export function EnvelopeCard({ envelope, mail }: { envelope: Envelope; mail: Mai
   const signerLabel = signerCheck === "match" ? "✓ signature matches sender" : signerCheck === "mismatch" ? "⚠ signer does not match sender wallet" : signerCheck === "error" ? "⚠ signature could not be verified" : "verifying signature…";
 
   return (
-    <article className="space-y-2 rounded-md border border-gray-200 p-3 bg-white">
+    <article className="space-y-2">
       <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
         <span className="font-semibold text-sm">{envelope.from.name || mailSenderShort(mail)}</span>
         {envelope.from.owner_url && (
-          <a className="text-xs text-blue-700 hover:underline" href={envelope.from.owner_url} target="_blank" rel="noreferrer noopener">
+          <a className="text-xs text-primary hover:underline" href={envelope.from.owner_url} target="_blank" rel="noreferrer noopener">
             {hostnameOf(envelope.from.owner_url)}
           </a>
         )}
         {identity && (
-          <span className="text-xs rounded-full bg-gray-100 px-2 py-0.5 text-gray-700" title={identity.description ?? identity.raw}>
+          <Badge variant="secondary" title={identity.description ?? identity.raw}>
             {identity.source === "erc8004" ? "erc-8004" : identity.source === "https" ? "https" : "uri"} ·{" "}
             {identity.display_name ?? identity.raw}
-          </span>
+          </Badge>
         )}
-        <span className={`text-xs rounded-full px-2 py-0.5 ${URGENCY_BADGE[envelope.urgency]}`}>{envelope.urgency}</span>
+        <Badge variant={URGENCY_VARIANT[envelope.urgency]}>{envelope.urgency}</Badge>
       </header>
 
       <h3 className="text-base font-medium leading-tight">{envelope.title}</h3>
 
-      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">{envelope.body}</pre>
+      <pre className="text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed">{envelope.body}</pre>
 
       {envelope.action_url && (
-        <a
-          href={envelope.action_url}
-          target="_blank"
-          rel="noreferrer noopener"
-          className="inline-block text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md px-3 py-1.5"
-        >
-          {hostnameOf(envelope.action_url)} →
-        </a>
+        <Button asChild size="sm">
+          <a href={envelope.action_url} target="_blank" rel="noreferrer noopener">
+            {hostnameOf(envelope.action_url)} →
+          </a>
+        </Button>
       )}
 
-      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500 pt-1">
+      <Separator />
+
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
         <span>sent {formatTimestamp(envelope.sent_at)}</span>
         <span title={mail.sender} className="font-mono">from {mailSenderShort(mail)}</span>
         <span>fee {mail.valueGwei} gwei</span>
         {envelope.reply_to && (
           <span title={envelope.reply_to} className="font-mono">in reply to {envelope.reply_to.slice(0, 10)}…</span>
         )}
-        <span className={signerCheck === "match" ? "text-green-700" : signerCheck === "mismatch" || signerCheck === "error" ? "text-red-600" : ""}>{signerLabel}</span>
+        <span className={signerCheck === "match" ? "text-emerald-600" : signerCheck === "mismatch" || signerCheck === "error" ? "text-destructive" : ""}>{signerLabel}</span>
       </footer>
     </article>
   );

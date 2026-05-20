@@ -4,6 +4,8 @@ import { InboxList } from "./components/InboxList";
 import { SentList } from "./components/SentList";
 import { Compose } from "./components/Compose";
 import { Settings } from "./components/Settings";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Toaster } from "@/components/ui/sonner";
 
 type View = "inbox" | "sent" | "compose" | "settings";
 
@@ -19,21 +21,29 @@ export default function App() {
 
   return (
     <WalletGate>
-      <nav className="flex gap-4 px-4 py-2 border-b text-sm">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            onClick={() => setView(t.id)}
-            className={view === t.id ? "font-semibold" : "text-gray-500"}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
-      {view === "inbox" && <InboxList />}
-      {view === "sent" && <SentList />}
-      {view === "compose" && <Compose />}
-      {view === "settings" && <Settings />}
+      <main className="mx-auto w-full max-w-3xl px-4">
+        <Tabs
+          value={view}
+          onValueChange={(v) => setView(v as View)}
+          className="py-3"
+        >
+          <TabsList variant="line">
+            {TABS.map((t) => (
+              <TabsTrigger key={t.id} value={t.id}>
+                {t.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </Tabs>
+
+        <div className="pb-10">
+          {view === "inbox" && <InboxList />}
+          {view === "sent" && <SentList />}
+          {view === "compose" && <Compose />}
+          {view === "settings" && <Settings />}
+        </div>
+      </main>
+      <Toaster />
     </WalletGate>
   );
 }

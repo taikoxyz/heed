@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { clearKeys } from "../lib/keys";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const { address, isConnected } = useAccount();
@@ -14,36 +22,39 @@ export function WalletGate({ children }: { children: ReactNode }) {
 
   if (!isConnected) {
     return (
-      <div className="p-8">
-        <h1 className="text-2xl mb-4">Heed</h1>
-        <p className="text-sm text-gray-500 mb-4">
-          Connect a wallet to view your inbox.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {connectors.map((c) => (
-            <button
-              key={c.uid}
-              onClick={() => connect({ connector: c })}
-              className="px-4 py-2 border rounded"
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
+      <div className="flex min-h-screen items-center justify-center p-4">
+        <Card className="w-full max-w-sm">
+          <CardHeader>
+            <CardTitle className="text-2xl">Heed</CardTitle>
+            <CardDescription>
+              Connect a wallet to view your inbox.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-wrap gap-2">
+            {connectors.map((c) => (
+              <Button
+                key={c.uid}
+                variant="outline"
+                onClick={() => connect({ connector: c })}
+              >
+                {c.name}
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div>
-      <header className="flex justify-between items-center p-4 border-b">
-        <span className="font-mono text-sm">{address}</span>
-        <button
-          onClick={onDisconnect}
-          className="text-sm underline text-gray-600"
-        >
+      <header className="flex items-center justify-between border-b px-4 py-2">
+        <span className="font-mono text-sm text-muted-foreground">
+          {address}
+        </span>
+        <Button variant="ghost" size="sm" onClick={onDisconnect}>
           Disconnect
-        </button>
+        </Button>
       </header>
       {children}
     </div>

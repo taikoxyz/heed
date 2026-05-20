@@ -3,8 +3,19 @@ import { isAddress, type Address } from "viem";
 import { createPublicClient, http } from "viem";
 import { taiko } from "viem/chains";
 import { createReadClient } from "@heed/core";
+import { toast } from "sonner";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
 import { getEffectiveConfig } from "../lib/settings";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 
 const STAGE_LABEL: Record<SendStage, string> = {
   lookup: "Looking up recipient…",
@@ -29,7 +40,6 @@ export function Compose() {
     cid: string;
     encrypted: boolean;
   } | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   async function onToBlur() {
@@ -66,7 +76,6 @@ export function Compose() {
   }
 
   async function onSend() {
-    setError(null);
     setResult(null);
     setBusy(true);
     setStage(null);
@@ -85,8 +94,9 @@ export function Compose() {
       setResult({ txHash: r.txHash, cid: r.cid, encrypted: r.encrypted });
       setSubject("");
       setBody("");
+      toast.success(`Sent ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      toast.error(e instanceof Error ? e.message : String(e));
     } finally {
       setBusy(false);
       setStage(null);
@@ -94,101 +104,95 @@ export function Compose() {
   }
 
   return (
-    <div className="p-4 max-w-xl">
-      <h2 className="text-lg mb-4">Compose</h2>
-
-      <div className="space-y-3">
-        <label className="block">
-          <span className="text-sm">To (address)</span>
-          <input
+    <Card className="max-w-xl">
+      <CardHeader>
+        <CardTitle className="text-lg">Compose</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="space-y-1">
+          <Label htmlFor="compose-to">To (address)</Label>
+          <Input
+            id="compose-to"
             type="text"
             value={to}
             onChange={(e) => setTo(e.target.value.trim())}
             onBlur={onToBlur}
             placeholder="0x…"
-            className="mt-1 w-full border rounded px-2 py-1 font-mono text-sm"
+            className="font-mono"
           />
           {feeHint && (
-            <span
-              className={`text-xs mt-1 block ${
-                plaintextMode ? "text-amber-700" : "text-gray-500"
+            <p
+              className={`text-xs ${
+                plaintextMode ? "text-amber-600" : "text-muted-foreground"
               }`}
             >
               {feeHint}
-            </span>
+            </p>
           )}
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-sm">Subject</span>
-          <input
+        <div className="space-y-1">
+          <Label htmlFor="compose-subject">Subject</Label>
+          <Input
+            id="compose-subject"
             type="text"
             value={subject}
             onChange={(e) => setSubject(e.target.value)}
-            className="mt-1 w-full border rounded px-2 py-1 text-sm"
           />
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-sm">Body</span>
-          <textarea
+        <div className="space-y-1">
+          <Label htmlFor="compose-body">Body</Label>
+          <Textarea
+            id="compose-body"
             value={body}
             onChange={(e) => setBody(e.target.value)}
             rows={8}
-            className="mt-1 w-full border rounded px-2 py-1 text-sm"
           />
-        </label>
+        </div>
 
-        <label className="block">
-          <span className="text-sm">Fee (gwei)</span>
-          <input
+        <div className="space-y-1">
+          <Label htmlFor="compose-fee">Fee (gwei)</Label>
+          <Input
+            id="compose-fee"
             type="number"
             min={0}
             value={feeGwei || ""}
             onChange={(e) => setFeeGwei(Number(e.target.value) || 0)}
-            className="mt-1 w-full border rounded px-2 py-1 font-mono text-sm"
+            className="font-mono"
           />
-        </label>
-      </div>
-
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={onSend}
-          disabled={busy}
-          className="px-4 py-2 border rounded text-sm disabled:opacity-50"
-        >
-          {busy ? "Sending…" : plaintextMode ? "Send (plaintext)" : "Send"}
-        </button>
-        {stage && (
-          <span className="text-sm text-gray-600">{STAGE_LABEL[stage]}</span>
-        )}
-      </div>
-
-      {error && (
-        <div className="mt-4 text-sm text-red-600 break-words">{error}</div>
-      )}
-
-      {result && (
-        <div className="mt-4 text-sm space-y-1">
-          <div className="text-green-700">
-            Sent {result.encrypted ? "(encrypted)" : "(plaintext)"}.
-          </div>
-          <div className="break-all">
-            tx: <code className="text-xs">{result.txHash}</code>
-          </div>
-          <div className="break-all">
-            cid: <code className="text-xs">{result.cid}</code>
-          </div>
-          <a
-            className="underline text-xs"
-            href={`https://taikoscan.io/tx/${result.txHash}`}
-            target="_blank"
-            rel="noreferrer"
-          >
-            View on Taikoscan ↗
-          </a>
         </div>
-      )}
-    </div>
+
+        <div className="flex items-center gap-3 pt-1">
+          <Button onClick={onSend} disabled={busy}>
+            {busy ? "Sending…" : plaintextMode ? "Send (plaintext)" : "Send"}
+          </Button>
+          {stage && (
+            <span className="text-sm text-muted-foreground">
+              {STAGE_LABEL[stage]}
+            </span>
+          )}
+        </div>
+
+        {result && (
+          <div className="space-y-1 text-sm">
+            <div className="break-all">
+              tx: <code className="text-xs">{result.txHash}</code>
+            </div>
+            <div className="break-all">
+              cid: <code className="text-xs">{result.cid}</code>
+            </div>
+            <a
+              className="text-xs text-primary underline"
+              href={`https://taikoscan.io/tx/${result.txHash}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              View on Taikoscan ↗
+            </a>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
