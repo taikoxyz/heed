@@ -213,6 +213,8 @@ export async function startMockRpc(
       case "eth_getLogs": {
         const filter = (params[0] ?? {}) as {
           topics?: (Hex | null)[];
+          fromBlock?: Hex;
+          toBlock?: Hex;
         };
         const recipientTopic = filter.topics?.[2];
         // The inbox filters by indexed recipient (topic[2]); only return
@@ -224,7 +226,10 @@ export async function startMockRpc(
         ) {
           return [];
         }
-        return encodedLogs;
+        // Honour the block window so the windowed scan behaves realistically.
+        const from = filter.fromBlock ? BigInt(filter.fromBlock) : 0n;
+        const to = filter.toBlock ? BigInt(filter.toBlock) : SEEDED_BLOCK;
+        return SEEDED_BLOCK >= from && SEEDED_BLOCK <= to ? encodedLogs : [];
       }
       default:
         return null;

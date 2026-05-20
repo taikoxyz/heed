@@ -10,10 +10,13 @@ const MAIL_SENT = parseAbiItem(
   "event MailSent(address indexed sender, address indexed recipient, bytes32 contentRef, uint32 valueGwei)"
 );
 
+const DEFAULT_LOG_WINDOW = 50_000n;
+
 export function createRpcMailSource(opts: {
-  client: PublicClient; contract: Address; deployedAtBlock: bigint;
+  client: PublicClient; contract: Address; deployedAtBlock: bigint; logWindow?: bigint;
 }): MailSource {
   const reader = createReadClient(opts.client, opts.contract);
+  const windowSize = opts.logWindow ?? DEFAULT_LOG_WINDOW;
 
   async function attachTimestamps(logs: any[]): Promise<MailEvent[]> {
     if (logs.length === 0) return [];
@@ -28,26 +31,34 @@ export function createRpcMailSource(opts: {
   async function page(
     args: object, sinceBlock?: bigint, limit = 100, before?: bigint,
   ): Promise<MailPage> {
-    const toBlock = before !== undefined ? before - 1n : undefined;
-    if (toBlock !== undefined && toBlock < opts.deployedAtBlock) {
-      return { items: [] };
+    const floor = sinceBlock ?? opts.deployedAtBlock;
+    let hi = before !== undefined ? before - 1n : await opts.client.getBlockNumber();
+    if (hi < floor) return { items: [] };
+
+    // Walk backward in bounded windows so each page only scans from its cursor
+    // toward the floor (never re-reading the whole history) and stays under
+    // provider getLogs range limits. Stop as soon as we have more than `limit`.
+    let collected: any[] = [];
+    while (hi >= floor && collected.length <= limit) {
+      const lo = hi - windowSize + 1n > floor ? hi - windowSize + 1n : floor;
+      const logs = await opts.client.getLogs({
+        address: opts.contract, event: MAIL_SENT, args, fromBlock: lo, toBlock: hi,
+      });
+      if (logs.length > 0) collected = (logs as any[]).concat(collected);
+      if (lo === floor) break;
+      hi = lo - 1n;
     }
-    const logs = await opts.client.getLogs({
-      address: opts.contract, event: MAIL_SENT,
-      args,
-      fromBlock: sinceBlock ?? opts.deployedAtBlock,
-      ...(toBlock !== undefined ? { toBlock } : {}),
-    });
-    if (logs.length <= limit) {
-      return { items: (await attachTimestamps(logs)).reverse() };
+
+    if (collected.length <= limit) {
+      return { items: (await attachTimestamps(collected)).reverse() };
     }
     // Keep pages block-aligned: never split one block across pages, or the next
     // page (toBlock = cursor - 1) would skip that block's remaining events.
-    const blockAt = (i: number) => (logs[i] as { blockNumber: bigint }).blockNumber;
-    let cut = logs.length - limit;
+    const blockAt = (i: number) => (collected[i] as { blockNumber: bigint }).blockNumber;
+    let cut = collected.length - limit;
     const cutBlock = blockAt(cut);
     while (cut > 0 && blockAt(cut - 1) === cutBlock) cut--;
-    const items = (await attachTimestamps(logs.slice(cut))).reverse();
+    const items = (await attachTimestamps(collected.slice(cut))).reverse();
     return cut > 0 ? { items, nextCursor: cutBlock } : { items };
   }
 
