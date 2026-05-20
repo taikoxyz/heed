@@ -64,6 +64,7 @@ vi.mock("@heed/core", async () => {
   return {
     ...actual,
     fetchCid: vi.fn(async () => fetchedRef.current ?? new Uint8Array()),
+    fetchCidWithFallback: vi.fn(async () => fetchedRef.current ?? new Uint8Array()),
   };
 });
 

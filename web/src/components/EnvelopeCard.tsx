@@ -4,7 +4,8 @@ import {
   type Envelope,
   type MailEvent,
 } from "@heed/core";
-import { resolveUri, type ResolvedIdentity } from "../lib/uri";
+import { type ResolvedIdentity } from "../lib/uri";
+import { resolveIdentity } from "../lib/identity";
 import { getEffectiveConfig } from "../lib/settings";
 
 const URGENCY_BADGE: Record<Envelope["urgency"], string> = {
@@ -45,7 +46,8 @@ export function EnvelopeCard({ envelope, mail }: { envelope: Envelope; mail: Mai
       return;
     }
     let cancelled = false;
-    void resolveUri(envelope.from.uri).then((r) => {
+    const cfg = getEffectiveConfig();
+    void resolveIdentity(envelope.from.uri, cfg.rpcUrl).then((r) => {
       if (!cancelled) setIdentity(r);
     });
     return () => {
@@ -65,7 +67,11 @@ export function EnvelopeCard({ envelope, mail }: { envelope: Envelope; mail: Mai
           </a>
         )}
         {identity && (
-          <span className="text-xs rounded-full bg-gray-100 px-2 py-0.5 text-gray-700" title={identity.description ?? identity.raw}>
+          <span
+            className={`text-xs rounded-full px-2 py-0.5 ${identity.verified ? "bg-green-100 text-green-800" : "bg-amber-50 text-amber-700"}`}
+            title={identity.description ?? identity.raw}
+          >
+            {identity.verified ? "✓ " : "○ "}
             {identity.source === "erc8004" ? "erc-8004" : identity.source === "https" ? "https" : "uri"} ·{" "}
             {identity.display_name ?? identity.raw}
           </span>

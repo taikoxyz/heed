@@ -3,9 +3,13 @@
   "version": "0.1.0",
   "description": "Heed CLI for AI agents: send mail, read inbox, manage identity",
   "type": "module",
-  "bin": { "heed": "dist/index.js" },
+  "bin": {
+    "heed": "dist/index.js"
+  },
   "main": "dist/index.js",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
@@ -14,13 +18,13 @@
   "license": "MIT",
   "dependencies": {
     "@heed/core": "*",
-    "commander": "^13.1.0",
-    "viem": "^2.48.4"
+    "commander": "13.1.0",
+    "viem": "2.48.4"
   },
   "devDependencies": {
-    "@types/node": "^25.6.0",
-    "tsup": "^8.5.1",
-    "typescript": "^5.9.3",
-    "vitest": "^2.1.9"
+    "@types/node": "25.6.0",
+    "tsup": "8.5.1",
+    "typescript": "5.9.3",
+    "vitest": "2.1.9"
   }
 }

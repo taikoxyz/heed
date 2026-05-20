@@ -1,3 +1,5 @@
+import type { PublicClient } from "viem";
+
 export interface ResolvedIdentity {
   raw: string;
   source: "erc8004" | "https" | "unknown";
@@ -8,5 +10,10 @@ export interface ResolvedIdentity {
   verified: boolean;
 }
 
+export interface UriResolverContext {
+  client?: PublicClient;
+  registries?: Record<string, `0x${string}`>;
+}
+
 export type UriMatcher = (uri: string) => boolean;
-export type UriResolver = (uri: string) => Promise<ResolvedIdentity>;
+export type UriResolver = (uri: string, ctx?: UriResolverContext) => Promise<ResolvedIdentity>;

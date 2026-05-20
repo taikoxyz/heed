@@ -3,7 +3,7 @@ import {
   decodeEncryptedBytes,
   decodePayload,
   digestToCid,
-  fetchCid,
+  fetchCidWithFallback,
   KEY_TYPED_DATA,
   type DecodedPayload,
 } from "@heed/core";
@@ -29,7 +29,7 @@ export function useMailDecryption() {
     const cfg = getEffectiveConfig();
     const digest = hexToBytes(contentRefHex);
     const cid = digestToCid(digest);
-    const bytes = await fetchCid(cid, cfg.ipfsGateway);
+    const bytes = await fetchCidWithFallback(cid, cfg.ipfsGateways);
 
     const outer = tryParseJson(bytes);
     if (!isEncryptedShape(outer)) {
