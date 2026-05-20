@@ -17,6 +17,9 @@ contract Heed is IHeed, Initializable, Ownable2StepUpgradeable, UUPSUpgradeable 
 
     uint256[50] private __gap;
 
+    /// @dev MAX_FEE_GWEI is immutable, so it lives in implementation bytecode rather than proxy
+    /// storage. Every upgraded implementation must be deployed with the same cap, otherwise the
+    /// proxy's effective cap changes on upgrade.
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint32 maxFeeGwei) {
         MAX_FEE_GWEI = maxFeeGwei;

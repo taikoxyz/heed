@@ -84,6 +84,26 @@ contract HeedUpgradeableTest is Test, Deployers {
         assertEq(HeedV2(address(tm)).version(), 2);
     }
 
+    function test_renounceOwnership_freezesUpgrades() public {
+        vm.prank(owner);
+        tm.renounceOwnership();
+        assertEq(tm.owner(), address(0));
+
+        // With no owner, upgrades are permanently disabled (the contract is frozen).
+        HeedV2 v2 = new HeedV2(10_000_000);
+        vm.prank(owner);
+        vm.expectRevert(
+            abi.encodeWithSelector(OwnableUpgradeable.OwnableUnauthorizedAccount.selector, owner)
+        );
+        tm.upgradeToAndCall(address(v2), "");
+
+        // Permissionless user functions still work after freezing.
+        address alice = makeAddr("alice");
+        vm.prank(alice);
+        tm.setFee(123);
+        assertEq(tm.feeGwei(alice), 123);
+    }
+
     function test_upgrade_preservesState() public {
         address alice = makeAddr("alice");
         bytes32 pub = bytes32(uint256(0xCAFE));
