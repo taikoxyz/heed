@@ -1,26 +1,17 @@
+import { useState } from "react";
 import { useInbox } from "../hooks/useInbox";
-import { MailCard } from "./MailCard";
-import { Skeleton } from "@/components/ui/skeleton";
+import { MailList } from "./MailList";
 
 export function InboxList() {
-  const { data, isLoading, error } = useInbox();
-  if (isLoading)
-    return (
-      <div className="space-y-3">
-        {[0, 1, 2].map((i) => (
-          <Skeleton key={i} className="h-20 w-full rounded-xl" />
-        ))}
-      </div>
-    );
-  if (error)
-    return <div className="text-sm text-destructive">{String(error)}</div>;
-  if (!data?.length)
-    return <div className="text-sm text-muted-foreground">No mail yet.</div>;
+  const [limit, setLimit] = useState(50);
+  const query = useInbox(limit);
   return (
-    <div className="space-y-3">
-      {data.map((m) => (
-        <MailCard key={m.txHash} mail={m} />
-      ))}
-    </div>
+    <MailList
+      query={query}
+      direction="received"
+      limit={limit}
+      onLoadMore={() => setLimit((l) => l + 50)}
+      emptyText="No mail yet."
+    />
   );
 }

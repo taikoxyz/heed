@@ -19,10 +19,11 @@ const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 export interface SendMailInput {
-  recipient: Address;
+  to: Address[];
+  cc?: Address[];
   subject: string;
   body: string;
-  feeGwei: number;
+  inReplyTo?: string;
   onProgress?: (stage: SendStage) => void;
 }
 
@@ -39,6 +40,21 @@ export interface SendMailResult {
   cid: string;
   contentRef: `0x${string}`;
   encrypted: boolean;
+  recipients: Address[];
+  totalFeeGwei: number;
+}
+
+function uniqueAddresses(addrs: Address[]): Address[] {
+  const seen = new Set<string>();
+  const out: Address[] = [];
+  for (const a of addrs) {
+    const k = a.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(a);
+    }
+  }
+  return out;
 }
 
 export function useSendMail() {
@@ -55,6 +71,11 @@ export function useSendMail() {
       throw new Error("set a Pinata JWT in Settings to send mail");
     }
 
+    const to = input.to;
+    const cc = input.cc ?? [];
+    const recipients = uniqueAddresses([...to, ...cc]);
+    if (recipients.length === 0) throw new Error("add at least one recipient");
+
     const publicClient = createPublicClient({
       chain: taiko,
       transport: http(cfg.rpcUrl),
@@ -62,31 +83,40 @@ export function useSendMail() {
     const reader = createReadClient(publicClient, cfg.contractAddress);
 
     input.onProgress?.("lookup");
-    const rcptInbox = await reader.getInbox(input.recipient);
-    const rcptKey = rcptInbox.keys[0];
-    const recipientHasKey = !!rcptKey && rcptKey.pub !== ZERO_BYTES32;
+    const inboxes = await reader.getInboxes(recipients);
 
-    if (cfg.maxFeeGwei > 0 && input.feeGwei > cfg.maxFeeGwei) {
-      throw new Error(
-        `recipient fee ${input.feeGwei} gwei exceeds your max of ${cfg.maxFeeGwei} gwei (Settings → Max anti-spam fee)`,
-      );
+    const fees: number[] = [];
+    let allHaveKeys = true;
+    for (let i = 0; i < recipients.length; i++) {
+      const inbox = inboxes[i]!;
+      const fee = Number(inbox.feeGwei);
+      fees.push(fee);
+      if (cfg.maxFeeGwei > 0 && fee > cfg.maxFeeGwei) {
+        throw new Error(
+          `recipient ${recipients[i]} charges ${fee} gwei, above your max of ${cfg.maxFeeGwei} gwei (Settings → Max anti-spam fee)`,
+        );
+      }
+      const key = inbox.keys[0];
+      if (!key || key.pub === ZERO_BYTES32) allHaveKeys = false;
     }
+    const totalFeeGwei = fees.reduce((a, b) => a + b, 0);
 
     const payload: PlaintextPayload = {
       v: 1,
       kind: "mail",
       from: sender,
-      to: [input.recipient],
-      cc: [],
+      to,
+      cc,
       date: Math.floor(Date.now() / 1000),
       msgId: crypto.randomUUID(),
       subject: input.subject,
       body: { text: input.body },
       attachments: [],
+      ...(input.inReplyTo ? { inReplyTo: input.inReplyTo } : {}),
     };
 
     let pinTarget: unknown;
-    if (recipientHasKey) {
+    if (allHaveKeys) {
       input.onProgress?.("derive-key");
       const senderInbox = await reader.getInbox(sender);
       const senderHasKey =
@@ -109,11 +139,11 @@ export function useSendMail() {
 
       input.onProgress?.("encrypt");
       pinTarget = encryptForRecipients(encodePlaintext(payload), [
-        {
-          rcpt: input.recipient,
-          keyNonce: Number(rcptKey!.keyNonce),
-          pub: hexToBytes(rcptKey!.pub),
-        },
+        ...recipients.map((rcpt, i) => ({
+          rcpt,
+          keyNonce: Number(inboxes[i]!.keys[0]!.keyNonce),
+          pub: hexToBytes(inboxes[i]!.keys[0]!.pub),
+        })),
         { rcpt: sender, keyNonce: senderKeyNonce, pub: senderPub },
       ]);
     } else {
@@ -130,15 +160,13 @@ export function useSendMail() {
     input.onProgress?.("submit");
     const writer = createWriteClient(walletClient, cfg.contractAddress);
     const txHash = await writer.sendBatch(
-      [
-        {
-          recipient: input.recipient,
-          valueGwei: input.feeGwei,
-          contentRef,
-        },
-      ],
+      recipients.map((recipient, i) => ({
+        recipient,
+        valueGwei: fees[i]!,
+        contentRef,
+      })),
       false,
-      BigInt(input.feeGwei) * 1_000_000_000n,
+      BigInt(totalFeeGwei) * 1_000_000_000n,
     );
 
     input.onProgress?.("confirm");
@@ -149,7 +177,14 @@ export function useSendMail() {
       throw new Error(`transaction reverted (${txHash})`);
     }
 
-    return { txHash, cid, contentRef, encrypted: recipientHasKey };
+    return {
+      txHash,
+      cid,
+      contentRef,
+      encrypted: allHaveKeys,
+      recipients,
+      totalFeeGwei,
+    };
   };
 }
 

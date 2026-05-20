@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
+import { useCompose } from "../lib/composeDraft";
+import { errorMessage } from "../lib/format";
 import { EnvelopeCard } from "./EnvelopeCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +19,7 @@ export function MailCard({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const decrypt = useMailDecryption();
+  const { openCompose } = useCompose();
 
   async function open(force = false) {
     setError(null);
@@ -24,10 +27,22 @@ export function MailCard({
     try {
       setContent(await decrypt(mail.contentRef, { force }));
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      setError(errorMessage(e));
     } finally {
       setBusy(false);
     }
+  }
+
+  function reply() {
+    let subject = "";
+    let inReplyTo: string | undefined;
+    if (content?.kind === "mail") {
+      subject = content.mail.subject ? `Re: ${content.mail.subject}` : "";
+      inReplyTo = content.mail.msgId;
+    } else if (content?.kind === "envelope") {
+      subject = content.envelope.title ? `Re: ${content.envelope.title}` : "";
+    }
+    openCompose({ to: mail.sender, subject, inReplyTo });
   }
 
   const counterparty = direction === "sent" ? mail.recipient : mail.sender;
@@ -36,8 +51,16 @@ export function MailCard({
   return (
     <Card size="sm">
       <CardContent className="space-y-2">
-        <div className="text-sm text-muted-foreground">
-          {counterpartyLabel} <span className="font-mono">{counterparty}</span>
+        <div className="flex items-start justify-between gap-2">
+          <div className="text-sm text-muted-foreground">
+            {counterpartyLabel}{" "}
+            <span className="font-mono">{counterparty}</span>
+          </div>
+          {direction === "received" && (
+            <Button variant="ghost" size="xs" onClick={reply}>
+              Reply
+            </Button>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
           <Badge variant="secondary">

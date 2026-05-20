@@ -16,16 +16,41 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+function isHttpUrl(s: string): boolean {
+  if (!s) return true;
+  try {
+    const u = new URL(s);
+    return u.protocol === "http:" || u.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
 export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
     setSaved(false);
+    setError(null);
   }
 
   function onSave() {
+    const bad = (
+      [
+        ["RPC URL", draft.rpcUrl],
+        ["IPFS gateway", draft.ipfsGateway],
+        ["Indexer URL", draft.indexerUrl],
+      ] as const
+    ).find(([, v]) => !isHttpUrl(v));
+    if (bad) {
+      setSaved(false);
+      setError(`${bad[0]} must be a valid http(s) URL.`);
+      return;
+    }
+    setError(null);
     saveSettings(draft);
     setSaved(true);
   }
@@ -33,6 +58,7 @@ export function Settings() {
   function onReset() {
     setDraft(EMPTY_SETTINGS);
     saveSettings(EMPTY_SETTINGS);
+    setError(null);
     setSaved(true);
   }
 
@@ -118,9 +144,8 @@ export function Settings() {
           <Button variant="outline" onClick={onReset}>
             Reset
           </Button>
-          {saved && (
-            <span className="text-sm text-emerald-600">Saved.</span>
-          )}
+          {saved && <span className="text-sm text-emerald-600">Saved.</span>}
+          {error && <span className="text-sm text-destructive">{error}</span>}
         </div>
       </CardContent>
     </Card>

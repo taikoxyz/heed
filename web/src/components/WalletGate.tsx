@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { clearKeys } from "../lib/keys";
+import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,9 +53,12 @@ export function WalletGate({ children }: { children: ReactNode }) {
         <span className="font-mono text-sm text-muted-foreground">
           {address}
         </span>
-        <Button variant="ghost" size="sm" onClick={onDisconnect}>
-          Disconnect
-        </Button>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
+          <Button variant="ghost" size="sm" onClick={onDisconnect}>
+            Disconnect
+          </Button>
+        </div>
       </header>
       {children}
     </div>

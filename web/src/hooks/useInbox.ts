@@ -5,7 +5,7 @@ import { taiko } from "viem/chains";
 import { createRpcMailSource, createIndexerMailSource } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
 
-export function useInbox() {
+export function useInbox(limit = 50) {
   const { address } = useAccount();
   const cfg = getEffectiveConfig();
   return useQuery({
@@ -15,6 +15,7 @@ export function useInbox() {
       cfg.rpcUrl,
       cfg.indexerUrl ?? "",
       cfg.deployedAtBlock.toString(),
+      limit,
     ],
     enabled: !!address,
     queryFn: async () => {
@@ -28,7 +29,7 @@ export function useInbox() {
             contract: cfg.contractAddress,
             deployedAtBlock: cfg.deployedAtBlock,
           });
-      return source.listInbox(address!, undefined, 100);
+      return source.listInbox(address!, undefined, limit);
     },
   });
 }

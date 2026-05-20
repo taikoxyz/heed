@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { isAddress, type Address } from "viem";
-import { createPublicClient, http } from "viem";
+import { useEffect, useState } from "react";
+import { createPublicClient, http, isAddress, type Address } from "viem";
 import { taiko } from "viem/chains";
 import { createReadClient } from "@heed/core";
+import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
+import { useCompose } from "../lib/composeDraft";
 import { getEffectiveConfig } from "../lib/settings";
+import { errorMessage } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,9 +18,17 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const STAGE_LABEL: Record<SendStage, string> = {
-  lookup: "Looking up recipient…",
+  lookup: "Looking up recipients…",
   "derive-key": "Deriving sender key…",
   encrypt: "Encrypting…",
   pin: "Pinning to IPFS…",
@@ -26,77 +36,162 @@ const STAGE_LABEL: Record<SendStage, string> = {
   confirm: "Waiting for confirmation…",
 };
 
+const ZERO_BYTES32 =
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+interface Parsed {
+  valid: Address[];
+  invalid: string[];
+}
+
+function parseAddresses(s: string): Parsed {
+  const parts = s
+    .split(/[\s,]+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const valid: Address[] = [];
+  const invalid: string[] = [];
+  for (const p of parts) {
+    if (isAddress(p)) valid.push(p);
+    else invalid.push(p);
+  }
+  return { valid, invalid };
+}
+
+function dedupe(addrs: Address[]): Address[] {
+  const seen = new Set<string>();
+  const out: Address[] = [];
+  for (const a of addrs) {
+    const k = a.toLowerCase();
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(a);
+    }
+  }
+  return out;
+}
+
 export function Compose() {
   const send = useSendMail();
-  const [to, setTo] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [feeGwei, setFeeGwei] = useState<number>(0);
-  const [feeHint, setFeeHint] = useState<string>("");
-  const [plaintextMode, setPlaintextMode] = useState(false);
+  const qc = useQueryClient();
+  const { draft, clearDraft } = useCompose();
+
+  const [to, setTo] = useState(draft?.to ?? "");
+  const [cc, setCc] = useState(draft?.cc ?? "");
+  const [subject, setSubject] = useState(draft?.subject ?? "");
+  const [body, setBody] = useState(draft?.body ?? "");
+  const [inReplyTo] = useState<string | undefined>(draft?.inReplyTo);
+
+  const [preview, setPreview] = useState<{
+    encrypted: boolean;
+    totalFeeGwei: number;
+    recipientCount: number;
+  } | null>(null);
+  const [hint, setHint] = useState("");
   const [stage, setStage] = useState<SendStage | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [result, setResult] = useState<{
     txHash: string;
     cid: string;
     encrypted: boolean;
   } | null>(null);
-  const [busy, setBusy] = useState(false);
 
-  async function onToBlur() {
-    setFeeHint("");
-    setPlaintextMode(false);
-    if (!isAddress(to)) return;
+  // Consume the one-shot draft so a later manual visit starts blank.
+  useEffect(() => {
+    clearDraft();
+  }, [clearDraft]);
+
+  async function refreshPreview(): Promise<boolean | null> {
+    setHint("");
+    setPreview(null);
+    const t = parseAddresses(to);
+    const c = parseAddresses(cc);
+    if (t.invalid.length || c.invalid.length) {
+      setHint(`Invalid address: ${[...t.invalid, ...c.invalid].join(", ")}`);
+      return null;
+    }
+    const recipients = dedupe([...t.valid, ...c.valid]);
+    if (recipients.length === 0) return null;
     try {
       const cfg = getEffectiveConfig();
-      const client = createPublicClient({
-        chain: taiko,
-        transport: http(cfg.rpcUrl),
-      });
-      const reader = createReadClient(client, cfg.contractAddress);
-      const inbox = await reader.getInbox(to as Address);
-      setFeeGwei(Number(inbox.feeGwei));
-      const hasKey =
-        inbox.keys[0] &&
-        inbox.keys[0].pub !==
-          "0x0000000000000000000000000000000000000000000000000000000000000000";
-      if (hasKey) {
-        setFeeHint(`Recipient charges ${inbox.feeGwei} gwei.`);
-        setPlaintextMode(false);
-      } else {
-        setFeeHint(
-          `Recipient charges ${inbox.feeGwei} gwei. No published encryption key — message will be sent as PLAINTEXT (anyone can read).`,
-        );
-        setPlaintextMode(true);
-      }
-    } catch (e) {
-      setFeeHint(
-        `Could not fetch recipient fee: ${e instanceof Error ? e.message : String(e)}`,
+      const reader = createReadClient(
+        createPublicClient({ chain: taiko, transport: http(cfg.rpcUrl) }),
+        cfg.contractAddress,
       );
+      const inboxes = await reader.getInboxes(recipients);
+      let total = 0;
+      let allKeys = true;
+      for (const ib of inboxes) {
+        total += Number(ib.feeGwei);
+        if (!ib.keys[0] || ib.keys[0].pub === ZERO_BYTES32) allKeys = false;
+      }
+      setPreview({
+        encrypted: allKeys,
+        totalFeeGwei: total,
+        recipientCount: recipients.length,
+      });
+      setHint(
+        allKeys
+          ? `${recipients.length} recipient(s) · total fee ${total} gwei · encrypted`
+          : `${recipients.length} recipient(s) · total fee ${total} gwei · some have no key — will send PLAINTEXT`,
+      );
+      return allKeys;
+    } catch (e) {
+      setHint(`Could not look up recipients: ${errorMessage(e)}`);
+      return null;
     }
   }
 
   async function onSend() {
+    const t = parseAddresses(to);
+    const c = parseAddresses(cc);
+    if (t.invalid.length || c.invalid.length) {
+      setHint(`Invalid address: ${[...t.invalid, ...c.invalid].join(", ")}`);
+      return;
+    }
+    if (t.valid.length === 0) {
+      setHint("add at least one recipient in the To field");
+      return;
+    }
+    if (!subject.trim() && !body.trim()) {
+      toast.error("subject or body must be non-empty");
+      return;
+    }
+    const encrypted = preview ? preview.encrypted : await refreshPreview();
+    if (encrypted === false) {
+      setConfirmOpen(true);
+      return;
+    }
+    await doSend();
+  }
+
+  async function doSend() {
+    setConfirmOpen(false);
     setResult(null);
     setBusy(true);
     setStage(null);
     try {
-      if (!isAddress(to)) throw new Error("recipient is not a valid address");
-      if (!subject.trim() && !body.trim()) {
-        throw new Error("subject or body must be non-empty");
-      }
+      const t = parseAddresses(to);
+      const c = parseAddresses(cc);
       const r = await send({
-        recipient: to as Address,
+        to: t.valid,
+        cc: c.valid,
         subject,
         body,
-        feeGwei,
+        inReplyTo,
         onProgress: setStage,
       });
       setResult({ txHash: r.txHash, cid: r.cid, encrypted: r.encrypted });
       setSubject("");
       setBody("");
-      toast.success(`Sent ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`);
+      setPreview(null);
+      toast.success(
+        `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
+      );
+      await qc.invalidateQueries({ queryKey: ["outbox"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : String(e));
+      toast.error(errorMessage(e));
     } finally {
       setBusy(false);
       setStage(null);
@@ -110,26 +205,42 @@ export function Compose() {
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1">
-          <Label htmlFor="compose-to">To (address)</Label>
+          <Label htmlFor="compose-to">To (one or more addresses)</Label>
           <Input
             id="compose-to"
             type="text"
             value={to}
-            onChange={(e) => setTo(e.target.value.trim())}
-            onBlur={onToBlur}
-            placeholder="0x…"
+            onChange={(e) => setTo(e.target.value)}
+            onBlur={refreshPreview}
+            placeholder="0x… , 0x…"
             className="font-mono"
           />
-          {feeHint && (
-            <p
-              className={`text-xs ${
-                plaintextMode ? "text-amber-600" : "text-muted-foreground"
-              }`}
-            >
-              {feeHint}
-            </p>
-          )}
         </div>
+
+        <div className="space-y-1">
+          <Label htmlFor="compose-cc">Cc (optional)</Label>
+          <Input
+            id="compose-cc"
+            type="text"
+            value={cc}
+            onChange={(e) => setCc(e.target.value)}
+            onBlur={refreshPreview}
+            placeholder="0x… , 0x…"
+            className="font-mono"
+          />
+        </div>
+
+        {hint && (
+          <p
+            className={`text-xs ${
+              preview && !preview.encrypted
+                ? "text-amber-600"
+                : "text-muted-foreground"
+            }`}
+          >
+            {hint}
+          </p>
+        )}
 
         <div className="space-y-1">
           <Label htmlFor="compose-subject">Subject</Label>
@@ -151,21 +262,9 @@ export function Compose() {
           />
         </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="compose-fee">Fee (gwei)</Label>
-          <Input
-            id="compose-fee"
-            type="number"
-            min={0}
-            value={feeGwei || ""}
-            onChange={(e) => setFeeGwei(Number(e.target.value) || 0)}
-            className="font-mono"
-          />
-        </div>
-
         <div className="flex items-center gap-3 pt-1">
           <Button onClick={onSend} disabled={busy}>
-            {busy ? "Sending…" : plaintextMode ? "Send (plaintext)" : "Send"}
+            {busy ? "Sending…" : "Send"}
           </Button>
           {stage && (
             <span className="text-sm text-muted-foreground">
@@ -193,6 +292,26 @@ export function Compose() {
           </div>
         )}
       </CardContent>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send as plaintext?</DialogTitle>
+            <DialogDescription>
+              One or more recipients have not published an encryption key. This
+              message will be stored unencrypted on IPFS and anyone can read it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={doSend}>
+              Send plaintext
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
