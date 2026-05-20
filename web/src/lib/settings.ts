@@ -1,4 +1,4 @@
-import { config } from "./config";
+import { config, parseGateways } from "./config";
 
 export interface Settings {
   rpcUrl: string;
@@ -48,7 +48,7 @@ export interface EffectiveConfig {
   chainId: number;
   deployedAtBlock: bigint;
   rpcUrl: string;
-  ipfsGateway: string;
+  ipfsGateways: string[];
   indexerUrl: string | undefined;
   maxFeeGwei: number;
   pinataJwt: string;
@@ -61,7 +61,7 @@ export function getEffectiveConfig(): EffectiveConfig {
     chainId: config.chainId,
     deployedAtBlock: config.deployedAtBlock,
     rpcUrl: s.rpcUrl || config.rpcUrl,
-    ipfsGateway: s.ipfsGateway || config.ipfsGateway,
+    ipfsGateways: s.ipfsGateway ? parseGateways(s.ipfsGateway) : config.ipfsGateways,
     indexerUrl: s.indexerUrl || config.indexerUrl,
     maxFeeGwei: s.maxFeeGwei,
     pinataJwt: s.pinataJwt,
