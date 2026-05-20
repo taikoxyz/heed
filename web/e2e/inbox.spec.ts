@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { test, expect, type Page } from "@playwright/test";
 import { STATE_FILE } from "./global-setup";
 import { walletStubInit, type WalletStubData } from "./wallet-stub";
-import { bufferPolyfillInit } from "./buffer-polyfill";
 
 interface State {
   recipient: string;
@@ -18,7 +17,6 @@ interface State {
 const state: State = JSON.parse(readFileSync(STATE_FILE, "utf8"));
 
 async function connectAndOpenAll(page: Page): Promise<void> {
-  await page.addInitScript(bufferPolyfillInit());
   await page.addInitScript(walletStubInit(state.wallet));
   await page.goto("/");
   // The wallet gate renders one button per connector; click the first.

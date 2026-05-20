@@ -63,9 +63,14 @@ export function decryptForRecipient(env: EncryptedEnvelope, k: DecryptKey): Uint
 }
 
 function toB64(b: Uint8Array): string {
-  return Buffer.from(b).toString("base64");
+  let s = "";
+  for (const byte of b) s += String.fromCharCode(byte);
+  return btoa(s);
 }
 
 function fromB64(s: string): Uint8Array {
-  return new Uint8Array(Buffer.from(s, "base64"));
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
