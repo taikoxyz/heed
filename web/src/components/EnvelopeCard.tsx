@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { createPublicClient, http } from "viem";
-import { taiko } from "viem/chains";
 import {
   recoverEnvelopeSigner,
   type Envelope,
   type MailEvent,
 } from "@heed/core";
-import { resolveUri, type ResolvedIdentity } from "../lib/uri";
+import { type ResolvedIdentity } from "../lib/uri";
+import { resolveIdentity } from "../lib/identity";
 import { getEffectiveConfig } from "../lib/settings";
 
 const URGENCY_BADGE: Record<Envelope["urgency"], string> = {
@@ -48,8 +47,7 @@ export function EnvelopeCard({ envelope, mail }: { envelope: Envelope; mail: Mai
     }
     let cancelled = false;
     const cfg = getEffectiveConfig();
-    const client = createPublicClient({ chain: taiko, transport: http(cfg.rpcUrl) });
-    void resolveUri(envelope.from.uri, { client }).then((r) => {
+    void resolveIdentity(envelope.from.uri, cfg.rpcUrl).then((r) => {
       if (!cancelled) setIdentity(r);
     });
     return () => {
