@@ -1,10 +1,22 @@
 # `@heed/web`
 
-Read-only Heed inbox web app. React + Vite + TS SPA. Wallet connect → see your
-inbox → decrypt encrypted mail in-browser. Static-deployable, IPFS-pinnable.
+Heed web client. React + Vite + TS SPA styled with Tailwind + shadcn/ui.
+Wallet connect → read & decrypt mail, compose encrypted mail to one or more
+recipients, and manage your on-chain inbox. Static-deployable, IPFS-pinnable.
 
 Spec: [`docs/heed-design.md`](../docs/heed-design.md).
 Plan: [`docs/plans/2026-04-28-web.md`](../docs/plans/2026-04-28-web.md).
+
+## Features
+
+- **Inbox / Sent** — paginated, filterable lists with manual refresh; opens and
+  decrypts encrypted payloads and renders signed agent envelopes.
+- **Compose** — multiple `To` + `Cc` recipients, reply prefill, recipient/fee
+  preview, and a confirmation before sending plaintext to keyless recipients.
+- **Account** — publish/rotate your X25519 encryption key, set your anti-spam
+  fee, and trust/untrust senders.
+- **Polish** — light/dark theme toggle, wrong-network guard with one-click
+  switch to Taiko, and toast notifications.
 
 ## Develop
 
@@ -25,14 +37,14 @@ Copy [`.env.example`](.env.example) to `.env.local` and adjust as needed. The
 defaults target Taiko mainnet with the production Heed contract (deployment
 captured in [`deployments/mainnet.json`](../deployments/mainnet.json)).
 
-| Variable | Purpose |
-| --- | --- |
-| `VITE_HEED_ADDRESS` | Heed contract address |
-| `VITE_TAIKO_RPC` | RPC endpoint for log scans + reads |
-| `VITE_IPFS_GATEWAY` | Gateway used to fetch encrypted payloads |
-| `VITE_INDEXER_URL` | Optional GraphQL endpoint; falls back to RPC log scan when unset |
-| `VITE_DEPLOYED_AT_BLOCK` | Lower bound for `getLogs` |
-| `VITE_WC_PROJECT_ID` | WalletConnect project id; the WC connector is omitted when unset |
+| Variable                 | Purpose                                                          |
+| ------------------------ | ---------------------------------------------------------------- |
+| `VITE_HEED_ADDRESS`      | Heed contract address                                            |
+| `VITE_TAIKO_RPC`         | RPC endpoint for log scans + reads                               |
+| `VITE_IPFS_GATEWAY`      | Gateway used to fetch encrypted payloads                         |
+| `VITE_INDEXER_URL`       | Optional GraphQL endpoint; falls back to RPC log scan when unset |
+| `VITE_DEPLOYED_AT_BLOCK` | Lower bound for `getLogs`                                        |
+| `VITE_WC_PROJECT_ID`     | WalletConnect project id; the WC connector is omitted when unset |
 
 Settings entered through the in-app **Settings** panel persist to localStorage
 and override these defaults at runtime.
@@ -42,11 +54,13 @@ and override these defaults at runtime.
 ```bash
 npm --workspace @heed/web run typecheck
 npm --workspace @heed/web run test          # vitest unit tests
-npm --workspace @heed/web run test:e2e      # playwright (e2e/ inbox spec)
+npm --workspace @heed/web run test:e2e      # playwright
 ```
 
-The Playwright spec is skipped pending an anvil fixture harness — see the
-runbook inside [`e2e/inbox.spec.ts`](e2e/inbox.spec.ts) to enable it.
+`e2e/app.spec.ts` drives the connected UI via an injected `window.ethereum`
+stub (see [`e2e/fixtures.ts`](e2e/fixtures.ts)) and runs in CI. The
+on-chain-data inbox spec in [`e2e/inbox.spec.ts`](e2e/inbox.spec.ts) stays
+skipped pending an anvil fork fixture.
 
 ## Reproducible build
 
@@ -81,6 +95,17 @@ ipfs add -r --pin web/dist/
 
 The published CID is the integrity-pinned distribution; clients can serve it
 from any IPFS gateway. The canonical HTTP host is a convenience mirror.
+
+## Deploy (Vercel)
+
+[`vercel.json`](../vercel.json) at the repo root builds `@heed/core` then the
+web app and serves `web/dist/` as an SPA. Point a Vercel project at the repo
+root and it picks up the config automatically. The
+[`deploy`](../.github/workflows/deploy.yml) workflow also deploys on push to
+`main` when the `VERCEL_TOKEN`, `VERCEL_ORG_ID`, and `VERCEL_PROJECT_ID`
+repository secrets are set (it no-ops otherwise). Set production `VITE_*` env
+vars in the Vercel dashboard; the build falls back to the Taiko mainnet
+deployment when they are unset.
 
 ## Security posture
 
