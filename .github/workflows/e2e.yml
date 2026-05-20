@@ -30,11 +30,13 @@ jobs:
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
-      - name: Install forge-std (version pinned in contracts/foundry.lock)
+      - name: Install dependencies (versions pinned in contracts/foundry.lock)
         working-directory: contracts
         run: |
-          TAG=$(jq -r '."lib/forge-std".tag.name' foundry.lock)
-          forge install foundry-rs/forge-std@"$TAG"
+          forge install --no-git --shallow \
+            foundry-rs/forge-std@"$(jq -r '."lib/forge-std".tag.name' foundry.lock)" \
+            OpenZeppelin/openzeppelin-contracts@"$(jq -r '."lib/openzeppelin-contracts".tag.name' foundry.lock)" \
+            OpenZeppelin/openzeppelin-contracts-upgradeable@"$(jq -r '."lib/openzeppelin-contracts-upgradeable".tag.name' foundry.lock)"
       - run: npm ci
       - name: Run protocol round-trip
         env:

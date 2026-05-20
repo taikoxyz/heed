@@ -5,13 +5,14 @@ import {Test} from "forge-std/Test.sol";
 import {Heed} from "impl/Heed.sol";
 import {IHeed} from "iface/IHeed.sol";
 import {Reverter} from "./utils/Reverter.sol";
+import {Deployers} from "./utils/Deployers.sol";
 
-contract HeedTest is Test {
+contract HeedTest is Test, Deployers {
     Heed tm;
     address alice = makeAddr("alice");
 
     function setUp() public {
-        tm = new Heed(10_000_000);
+        tm = _deployHeed(10_000_000, address(this));
     }
 
     function _signConsent(uint256 sk, address owner, address delegate, bytes32 clientId)

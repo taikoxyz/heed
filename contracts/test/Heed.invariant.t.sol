@@ -4,6 +4,7 @@ pragma solidity 0.8.27;
 import {Test, Vm} from "forge-std/Test.sol";
 import {Heed} from "impl/Heed.sol";
 import {IHeed} from "iface/IHeed.sol";
+import {Deployers} from "./utils/Deployers.sol";
 
 contract Handler is Test {
     Heed public tm;
@@ -24,12 +25,12 @@ contract Handler is Test {
     }
 }
 
-contract HeedInvariantTest is Test {
+contract HeedInvariantTest is Test, Deployers {
     Heed tm;
     Handler handler;
 
     function setUp() public {
-        tm = new Heed(10_000_000);
+        tm = _deployHeed(10_000_000, address(this));
         handler = new Handler(tm);
         vm.deal(address(handler), type(uint128).max);
         targetContract(address(handler));
@@ -40,14 +41,14 @@ contract HeedInvariantTest is Test {
     }
 }
 
-contract HeedAccountingFuzzTest is Test {
+contract HeedAccountingFuzzTest is Test, Deployers {
     Heed tm;
     address sender = makeAddr("sender");
     address[3] rcpts;
     bytes32[3] contentRefs;
 
     function setUp() public {
-        tm = new Heed(10_000_000);
+        tm = _deployHeed(10_000_000, address(this));
         rcpts[0] = makeAddr("r0");
         rcpts[1] = makeAddr("r1");
         rcpts[2] = makeAddr("r2");
