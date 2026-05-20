@@ -133,6 +133,27 @@ describe("createRpcMailSource", () => {
     expect(fakeClient.getLogs).not.toHaveBeenCalled();
   });
 
+  it("listInboxPage does not split a block across pages", async () => {
+    // block 2 holds three events; with limit 2 the page must still return all of
+    // block 2 (not just the newest event in it), so the next page can't skip them.
+    const logs = [
+      { transactionHash: "0xa", blockNumber: 1n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 1n } },
+      { transactionHash: "0xb", blockNumber: 2n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 2n } },
+      { transactionHash: "0xc", blockNumber: 2n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 3n } },
+      { transactionHash: "0xd", blockNumber: 2n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 4n } },
+      { transactionHash: "0xe", blockNumber: 3n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 5n } },
+    ];
+    const fakeClient = {
+      getLogs: vi.fn(async () => logs),
+      getBlock: vi.fn(async ({ blockNumber }: { blockNumber: bigint }) => fakeBlock(blockNumber, blockNumber)),
+      readContract: vi.fn(),
+    } as any;
+    const src = createRpcMailSource({ client: fakeClient, contract: DEAD_CONTRACT, deployedAtBlock: 0n });
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { limit: 2 });
+    expect(items.map((m) => m.blockNumber)).toEqual([3n, 2n, 2n, 2n]);
+    expect(nextCursor).toBe(2n);
+  });
+
   it("dedupes getBlock calls per unique block number", async () => {
     const logs = [
       { transactionHash: "0x1", blockNumber: 5n, args: { sender: "0xS", recipient: "0xR", contentRef: "0xC", valueGwei: 1n } },

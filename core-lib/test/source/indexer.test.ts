@@ -140,7 +140,7 @@ describe("createIndexerMailSource", () => {
     expect(body.query).toContain("blockNumber_gte");
   });
 
-  it("listInboxPage forwards before cursor as blockNumber_lt and reports nextCursor when full page", async () => {
+  it("listInboxPage forwards before cursor as blockNumber_lt and trims the boundary block on a full page", async () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     const mails = Array.from({ length: 2 }, (_, i) => ({
       ...makeRawMail(),
@@ -157,8 +157,28 @@ describe("createIndexerMailSource", () => {
     const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
     expect(body.variables.before).toBe("99");
     expect(body.query).toContain("blockNumber_lt");
-    expect(items).toHaveLength(2);
-    expect(nextCursor).toBe(9n);
+    // The oldest block (9) might be split by the page boundary, so it is dropped
+    // and re-included next page (nextCursor = oldest + 1, exclusive via _lt).
+    expect(items.map((m) => m.blockNumber)).toEqual([10n]);
+    expect(nextCursor).toBe(10n);
+  });
+
+  it("listInboxPage trims an entire multi-event oldest block on a full page", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    const mails = [
+      { ...makeRawMail(), txHash: "0xa", blockNumber: "10" },
+      { ...makeRawMail(), txHash: "0xb", blockNumber: "9" },
+      { ...makeRawMail(), txHash: "0xc", blockNumber: "9" },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { mails }, errors: undefined }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { limit: 3 });
+    expect(items.map((m) => m.blockNumber)).toEqual([10n]);
+    expect(nextCursor).toBe(10n);
   });
 
   it("listInboxPage omits before variable and nextCursor when page is not full", async () => {

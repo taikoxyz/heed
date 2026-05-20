@@ -57,8 +57,15 @@ export function createIndexerMailSource(endpoint: string): MailSource {
       }
     );
     const items = d.mails.map(fromRaw);
-    const hasMore = items.length === limit && items.length > 0;
-    return hasMore ? { items, nextCursor: items[items.length - 1]!.blockNumber } : { items };
+    if (items.length < limit) return { items };
+    // Full page: the subgraph may have split the oldest block across the page
+    // boundary. Drop that block and re-include it next page (nextCursor is
+    // exclusive via blockNumber_lt) so its remaining events aren't skipped.
+    const oldestBlock = items[items.length - 1]!.blockNumber;
+    let cut = items.length;
+    while (cut > 0 && items[cut - 1]!.blockNumber === oldestBlock) cut--;
+    if (cut === 0) return { items, nextCursor: oldestBlock };
+    return { items: items.slice(0, cut), nextCursor: oldestBlock + 1n };
   }
 
   return {

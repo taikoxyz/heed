@@ -38,10 +38,17 @@ export function createRpcMailSource(opts: {
       fromBlock: sinceBlock ?? opts.deployedAtBlock,
       ...(toBlock !== undefined ? { toBlock } : {}),
     });
-    const recent = logs.slice(-limit);
-    const items = (await attachTimestamps(recent)).reverse();
-    const hasMore = logs.length > recent.length && items.length > 0;
-    return hasMore ? { items, nextCursor: items[items.length - 1]!.blockNumber } : { items };
+    if (logs.length <= limit) {
+      return { items: (await attachTimestamps(logs)).reverse() };
+    }
+    // Keep pages block-aligned: never split one block across pages, or the next
+    // page (toBlock = cursor - 1) would skip that block's remaining events.
+    const blockAt = (i: number) => (logs[i] as { blockNumber: bigint }).blockNumber;
+    let cut = logs.length - limit;
+    const cutBlock = blockAt(cut);
+    while (cut > 0 && blockAt(cut - 1) === cutBlock) cut--;
+    const items = (await attachTimestamps(logs.slice(cut))).reverse();
+    return cut > 0 ? { items, nextCursor: cutBlock } : { items };
   }
 
   return {
