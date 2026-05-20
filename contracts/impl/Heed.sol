@@ -2,8 +2,11 @@
 pragma solidity 0.8.27;
 
 import {IHeed} from "iface/IHeed.sol";
+import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
+import {Ownable2StepUpgradeable} from "@openzeppelin/contracts-upgradeable/access/Ownable2StepUpgradeable.sol";
+import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 
-contract Heed is IHeed {
+contract Heed is IHeed, Initializable, Ownable2StepUpgradeable, UUPSUpgradeable {
     uint32 public immutable MAX_FEE_GWEI;
 
     mapping(address => EncKey[2])                       internal  _keys;
@@ -12,9 +15,21 @@ contract Heed is IHeed {
     mapping(address => address)                         public    delegateOwner;
     mapping(address => bytes32)                         public    delegateClient;
 
+    uint256[50] private __gap;
+
+    /// @custom:oz-upgrades-unsafe-allow constructor
     constructor(uint32 maxFeeGwei) {
         MAX_FEE_GWEI = maxFeeGwei;
+        _disableInitializers();
     }
+
+    function initialize(address initialOwner) external initializer {
+        __Ownable_init(initialOwner);
+        __Ownable2Step_init();
+        __UUPSUpgradeable_init();
+    }
+
+    function _authorizeUpgrade(address newImplementation) internal override onlyOwner {}
 
     function publishKey(uint32 keyNonce, bytes32 pub) external {
         if (pub == bytes32(0)) revert EmptyPubKey();
