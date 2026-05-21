@@ -2,7 +2,11 @@
   "name": "heed-monorepo",
   "private": true,
   "type": "module",
-  "workspaces": ["core-lib", "web", "cli"],
+  "workspaces": [
+    "core-lib",
+    "web",
+    "cli"
+  ],
   "scripts": {
     "build:core": "npm --workspace @heed/core run build",
     "build:web": "npm --workspace @heed/web run build",
@@ -23,6 +27,6 @@
     "husky": "^9.1.7",
     "lint-staged": "^15.5.2",
     "prettier": "^3.6.2",
-    "tsx": "^4.21.0"
+    "tsx": "4.21.0"
   }
 }

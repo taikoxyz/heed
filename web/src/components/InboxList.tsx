@@ -1,16 +1,20 @@
-import { useState } from "react";
 import { useInbox } from "../hooks/useInbox";
 import { MailList } from "./MailList";
 
 export function InboxList() {
-  const [limit, setLimit] = useState(50);
-  const query = useInbox(limit);
+  const query = useInbox();
+  const mail = query.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <MailList
-      query={query}
+      mail={mail}
       direction="received"
-      limit={limit}
-      onLoadMore={() => setLimit((l) => l + 50)}
+      isLoading={query.isLoading}
+      isFetching={query.isFetching}
+      error={query.error}
+      onRefresh={() => query.refetch()}
+      hasMore={!!query.hasNextPage}
+      onLoadMore={() => query.fetchNextPage()}
+      isLoadingMore={query.isFetchingNextPage}
       emptyText="No mail yet."
     />
   );

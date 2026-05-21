@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
+import type { PublicClient } from "viem";
 import {
   clearResolvers,
   registerDefaultResolvers,
@@ -23,6 +24,45 @@ describe("default URI resolvers", () => {
     const r = await resolveUri("erc8004:mainnet:0xabc");
     expect(r.source).toBe("erc8004");
     expect(r.display_name).toBe("agent #0xabc (mainnet)");
+  });
+
+  it("returns an unverified erc8004 result when no registry is configured", async () => {
+    const r = await resolveUri("erc8004:taiko:42", { registries: {} });
+    expect(r.source).toBe("erc8004");
+    expect(r.verified).toBe(false);
+    expect(r.description).toMatch(/no registry configured/i);
+  });
+
+  it("verifies an erc8004 agent against a configured registry", async () => {
+    const client = {
+      readContract: async () => [
+        "0x1111111111111111111111111111111111111111",
+        "https://agent.example/card",
+      ],
+    } as unknown as PublicClient;
+    const r = await resolveUri("erc8004:taiko:42", {
+      client,
+      registries: { taiko: "0x2222222222222222222222222222222222222222" },
+    });
+    expect(r.source).toBe("erc8004");
+    expect(r.verified).toBe(true);
+    expect(r.display_name).toBe("agent #42 (taiko)");
+    expect(r.owner).toBe("0x1111111111111111111111111111111111111111");
+    expect(r.registry_url).toBe("https://agent.example/card");
+  });
+
+  it("treats a zero-owner registry record as unverified", async () => {
+    const client = {
+      readContract: async () => [
+        "0x0000000000000000000000000000000000000000",
+        "",
+      ],
+    } as unknown as PublicClient;
+    const r = await resolveUri("erc8004:taiko:7", {
+      client,
+      registries: { taiko: "0x2222222222222222222222222222222222222222" },
+    });
+    expect(r.verified).toBe(false);
   });
 
   it("resolves https:// to a hostname-labeled identity", async () => {
@@ -53,7 +93,12 @@ describe("resolver registry", () => {
   it("supports custom resolvers added via registerResolver", async () => {
     registerResolver(
       (u) => u.startsWith("did:"),
-      async (u) => ({ raw: u, source: "unknown", display_name: "DID identity", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "unknown",
+        display_name: "DID identity",
+        verified: false,
+      }),
     );
     const r = await resolveUri("did:web:example.com");
     expect(r.display_name).toBe("DID identity");
@@ -77,11 +122,21 @@ describe("resolver registry", () => {
     clearResolvers();
     registerResolver(
       () => true,
-      async (u) => ({ raw: u, source: "https", display_name: "first", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "https",
+        display_name: "first",
+        verified: false,
+      }),
     );
     registerResolver(
       () => true,
-      async (u) => ({ raw: u, source: "https", display_name: "second", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "https",
+        display_name: "second",
+        verified: false,
+      }),
     );
     const r = await resolveUri("anything");
     expect(r.display_name).toBe("first");

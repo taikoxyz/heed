@@ -22,7 +22,7 @@ describe("createIndexerMailSource", () => {
     vi.unstubAllGlobals();
   });
 
-  it("listInbox POSTs recipient query and returns mails", async () => {
+  it("listInbox POSTs recipient query and returns array of mails", async () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     const raw = makeRawMail();
     mockFetch.mockResolvedValueOnce({
@@ -42,12 +42,35 @@ describe("createIndexerMailSource", () => {
     const [url, init] = mockFetch.mock.calls[0]!;
     expect(url).toBe(ENDPOINT);
     const body = JSON.parse((init as RequestInit).body as string);
-    expect(body.variables.r).toBe("0xrecipient");
+    expect(body.variables.a).toBe("0xrecipient");
     expect(body.variables.n).toBe(10);
     expect(body.query).toContain("recipient");
   });
 
-  it("listOutbox POSTs sender query and returns mails", async () => {
+  it("listInboxPage POSTs recipient query and returns a page", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    const raw = makeRawMail();
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { mails: [raw] }, errors: undefined }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    const { items } = await src.listInboxPage("0xRecipient" as any, {
+      limit: 10,
+    });
+
+    expect(items).toHaveLength(1);
+    expect(items[0]!.txHash).toBe("0xabc");
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.variables.a).toBe("0xrecipient");
+    expect(body.variables.n).toBe(10);
+    expect(body.query).toContain("recipient");
+  });
+
+  it("listOutbox POSTs sender query and returns array of mails", async () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     const raw = makeRawMail();
     mockFetch.mockResolvedValueOnce({
@@ -61,8 +84,10 @@ describe("createIndexerMailSource", () => {
     expect(result).toHaveLength(1);
     expect(result[0]!.blockNumber).toBe(1n);
     expect(result[0]!.valueGwei).toBe(1);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
-    expect(body.variables.s).toBe("0xsender");
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.variables.a).toBe("0xsender");
     expect(body.variables.n).toBe(50);
     expect(body.query).toContain("sender");
   });
@@ -70,14 +95,14 @@ describe("createIndexerMailSource", () => {
   it("getInbox throws with the expected message", async () => {
     const src = createIndexerMailSource(ENDPOINT);
     await expect(src.getInbox("0xAddr" as any)).rejects.toThrow(
-      "getInbox via indexer: prefer RPC reader for fresh fee/keys"
+      "getInbox via indexer: prefer RPC reader for fresh fee/keys",
     );
   });
 
   it("subscribe throws with the expected message", () => {
     const src = createIndexerMailSource(ENDPOINT);
     expect(() => src.subscribe("0xAddr" as any, vi.fn())).toThrow(
-      "subscribe via indexer requires WS endpoint; impl as poll fallback"
+      "subscribe via indexer requires WS endpoint; impl as poll fallback",
     );
   });
 
@@ -85,11 +110,16 @@ describe("createIndexerMailSource", () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ data: null, errors: [{ message: "field not found" }] }),
+      json: async () => ({
+        data: null,
+        errors: [{ message: "field not found" }],
+      }),
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
-    await expect(src.listInbox("0xR" as any)).rejects.toThrow("field not found");
+    await expect(src.listInbox("0xR" as any)).rejects.toThrow(
+      "field not found",
+    );
   });
 
   it("uses default limit of 100 when not specified", async () => {
@@ -101,7 +131,9 @@ describe("createIndexerMailSource", () => {
 
     const src = createIndexerMailSource(ENDPOINT);
     await src.listInbox("0xR" as any);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.n).toBe(100);
     expect(body.variables.since).toBe("0");
   });
@@ -115,10 +147,80 @@ describe("createIndexerMailSource", () => {
 
     const src = createIndexerMailSource(ENDPOINT);
     await src.listInbox("0xR" as any, 18000000n, 25);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.since).toBe("18000000");
     expect(body.variables.n).toBe(25);
     expect(body.query).toContain("blockNumber_gte");
+  });
+
+  it("listInboxPage forwards before cursor as blockNumber_lt and trims the boundary block on a full page", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    const mails = Array.from({ length: 2 }, (_, i) => ({
+      ...makeRawMail(),
+      txHash: `0x${i}`,
+      blockNumber: String(10 - i),
+    }));
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { mails }, errors: undefined }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, {
+      before: 99n,
+      limit: 2,
+    });
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.variables.before).toBe("99");
+    expect(body.query).toContain("blockNumber_lt");
+    // The oldest block (9) might be split by the page boundary, so it is dropped
+    // and re-included next page (nextCursor = oldest + 1, exclusive via _lt).
+    expect(items.map((m) => m.blockNumber)).toEqual([10n]);
+    expect(nextCursor).toBe(10n);
+  });
+
+  it("listInboxPage trims an entire multi-event oldest block on a full page", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    const mails = [
+      { ...makeRawMail(), txHash: "0xa", blockNumber: "10" },
+      { ...makeRawMail(), txHash: "0xb", blockNumber: "9" },
+      { ...makeRawMail(), txHash: "0xc", blockNumber: "9" },
+    ];
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ data: { mails }, errors: undefined }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, {
+      limit: 3,
+    });
+    expect(items.map((m) => m.blockNumber)).toEqual([10n]);
+    expect(nextCursor).toBe(10n);
+  });
+
+  it("listInboxPage omits before variable and nextCursor when page is not full", async () => {
+    const mockFetch = vi.mocked(globalThis.fetch);
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: { mails: [makeRawMail()] },
+        errors: undefined,
+      }),
+    } as Response);
+
+    const src = createIndexerMailSource(ENDPOINT);
+    const { nextCursor } = await src.listInboxPage("0xR" as any, { limit: 10 });
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
+    expect(body.variables.before).toBeUndefined();
+    expect(body.query).not.toContain("blockNumber_lt");
+    expect(nextCursor).toBeUndefined();
   });
 
   it("throws indexer <status> on non-OK HTTP response", async () => {
@@ -138,15 +240,17 @@ describe("createIndexerMailSource", () => {
       ok: true,
       json: async () => ({
         data: {
-          mails: [{
-            txHash: "0xdeadbeef",
-            blockNumber: "18000000",
-            blockTimestamp: "1700000000",
-            sender: "0xaaa",
-            recipient: "0xbbb",
-            contentRef: "0xccc",
-            valueGwei: "5000",
-          }],
+          mails: [
+            {
+              txHash: "0xdeadbeef",
+              blockNumber: "18000000",
+              blockTimestamp: "1700000000",
+              sender: "0xaaa",
+              recipient: "0xbbb",
+              contentRef: "0xccc",
+              valueGwei: "5000",
+            },
+          ],
         },
         errors: undefined,
       }),

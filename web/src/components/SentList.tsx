@@ -1,16 +1,20 @@
-import { useState } from "react";
 import { useOutbox } from "../hooks/useOutbox";
 import { MailList } from "./MailList";
 
 export function SentList() {
-  const [limit, setLimit] = useState(50);
-  const query = useOutbox(limit);
+  const query = useOutbox();
+  const mail = query.data?.pages.flatMap((p) => p.items) ?? [];
   return (
     <MailList
-      query={query}
+      mail={mail}
       direction="sent"
-      limit={limit}
-      onLoadMore={() => setLimit((l) => l + 50)}
+      isLoading={query.isLoading}
+      isFetching={query.isFetching}
+      error={query.error}
+      onRefresh={() => query.refetch()}
+      hasMore={!!query.hasNextPage}
+      onLoadMore={() => query.fetchNextPage()}
+      isLoadingMore={query.isFetchingNextPage}
       emptyText="No sent mail yet."
     />
   );

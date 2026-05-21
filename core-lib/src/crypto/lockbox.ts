@@ -48,8 +48,13 @@ export function encryptForRecipients(
   return { v: 1, scheme: 1, nonce: toB64(ctNonce), lockboxes, ct: toB64(ct) };
 }
 
-export function decryptForRecipient(env: EncryptedEnvelope, k: DecryptKey): Uint8Array {
-  const lb = env.lockboxes.find((l) => l.rcpt === k.rcpt && l.keyNonce === k.keyNonce);
+export function decryptForRecipient(
+  env: EncryptedEnvelope,
+  k: DecryptKey,
+): Uint8Array {
+  const lb = env.lockboxes.find(
+    (l) => l.rcpt === k.rcpt && l.keyNonce === k.keyNonce,
+  );
   if (!lb) throw new Error("no lockbox for recipient/keyNonce");
   const wrapped = fromB64(lb.wrapped);
   const ephPub = wrapped.slice(0, 32);
@@ -59,13 +64,20 @@ export function decryptForRecipient(env: EncryptedEnvelope, k: DecryptKey): Uint
   const ourPub = x25519.getPublicKey(k.sk);
   const wrapKey = hkdf(sha256, shared, concatBytes(ephPub, ourPub), INFO, 32);
   const contentKey = xchacha20poly1305(wrapKey, kxNonce).decrypt(wrappedCk);
-  return xchacha20poly1305(contentKey, fromB64(env.nonce)).decrypt(fromB64(env.ct));
+  return xchacha20poly1305(contentKey, fromB64(env.nonce)).decrypt(
+    fromB64(env.ct),
+  );
 }
 
 function toB64(b: Uint8Array): string {
-  return Buffer.from(b).toString("base64");
+  let s = "";
+  for (const byte of b) s += String.fromCharCode(byte);
+  return btoa(s);
 }
 
 function fromB64(s: string): Uint8Array {
-  return new Uint8Array(Buffer.from(s, "base64"));
+  const bin = atob(s);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }

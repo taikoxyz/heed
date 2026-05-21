@@ -2,11 +2,13 @@ import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
+  clearSettings,
   EMPTY_SETTINGS,
   loadSettings,
   saveSettings,
   type Settings as SettingsT,
 } from "../lib/settings";
+import { parseGateways } from "../lib/config";
 import {
   exportAll,
   importAll,
@@ -34,26 +36,62 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-function isHttpUrl(s: string): boolean {
-  if (!s) return true;
-  try {
-    const u = new URL(s);
-    return u.protocol === "http:" || u.protocol === "https:";
-  } catch {
-    return false;
+function gatewayError(value: string): string | null {
+  if (!value.trim()) return null;
+  for (const g of parseGateways(value)) {
+    try {
+      const u = new URL(g);
+      if (u.protocol !== "http:" && u.protocol !== "https:") {
+        return `Not an http(s) URL: ${g}`;
+      }
+    } catch {
+      return `Invalid URL: ${g}`;
+    }
   }
+  return null;
 }
 
 export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
   const [importData, setImportData] = useState<HeedExport | null>(null);
+
+  const gwError = gatewayError(draft.ipfsGateway);
+
+  function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
+    setDraft((d) => ({ ...d, [key]: value }));
+    setSaved(false);
+  }
+
+  function onSave() {
+    if (gwError) return;
+    saveSettings(draft);
+    setSaved(true);
+  }
+
+  function onReset() {
+    setDraft(EMPTY_SETTINGS);
+    saveSettings(EMPTY_SETTINGS);
+    setSaved(true);
+  }
+
+  function onClearJwt() {
+    const next = { ...draft, pinataJwt: "" };
+    setDraft(next);
+    saveSettings(next);
+    setSaved(true);
+  }
+
+  function onClearAll() {
+    clearSettings();
+    setDraft(EMPTY_SETTINGS);
+    setSaved(true);
+  }
 
   async function onExport() {
     try {
@@ -98,37 +136,6 @@ export function Settings() {
     }
   }
 
-  function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
-    setDraft((d) => ({ ...d, [key]: value }));
-    setSaved(false);
-    setError(null);
-  }
-
-  function onSave() {
-    const bad = (
-      [
-        ["RPC URL", draft.rpcUrl],
-        ["IPFS gateway", draft.ipfsGateway],
-        ["Indexer URL", draft.indexerUrl],
-      ] as const
-    ).find(([, v]) => !isHttpUrl(v));
-    if (bad) {
-      setSaved(false);
-      setError(`${bad[0]} must be a valid http(s) URL.`);
-      return;
-    }
-    setError(null);
-    saveSettings(draft);
-    setSaved(true);
-  }
-
-  function onReset() {
-    setDraft(EMPTY_SETTINGS);
-    saveSettings(EMPTY_SETTINGS);
-    setError(null);
-    setSaved(true);
-  }
-
   return (
     <div className="max-w-xl space-y-4">
       <Card>
@@ -153,15 +160,19 @@ export function Settings() {
           </div>
 
           <div className="space-y-1">
-            <Label htmlFor="settings-ipfs">IPFS gateway</Label>
+            <Label htmlFor="settings-ipfs">IPFS gateway(s)</Label>
             <Input
               id="settings-ipfs"
               type="text"
               value={draft.ipfsGateway}
               onChange={(e) => update("ipfsGateway", e.target.value)}
-              placeholder="https://gateway.pinata.cloud"
+              placeholder="https://gateway.pinata.cloud,https://ipfs.io"
               className="font-mono"
             />
+            <p className="text-xs text-muted-foreground">
+              Comma-separated list, tried in order with fallback on failure.
+            </p>
+            {gwError && <p className="text-xs text-destructive">{gwError}</p>}
           </div>
 
           <div className="space-y-1">
@@ -207,15 +218,40 @@ export function Settings() {
               "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
               in this browser's localStorage.
             </p>
+            {draft.pinataJwt && (
+              <p className="text-xs text-destructive">
+                Warning: the JWT is stored UNENCRYPTED in this browser's
+                localStorage, readable by any script on this origin (e.g. via
+                XSS). Use a scoped key and clear it when done. See{" "}
+                <a
+                  href="https://github.com/dantaik/heed/blob/main/SECURITY.md"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline"
+                >
+                  SECURITY.md
+                </a>
+                .
+              </p>
+            )}
+            {draft.pinataJwt && (
+              <Button variant="outline" size="sm" onClick={onClearJwt}>
+                Clear JWT
+              </Button>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 pt-1">
-            <Button onClick={onSave}>Save</Button>
+          <div className="flex flex-wrap items-center gap-2 pt-1">
+            <Button onClick={onSave} disabled={!!gwError}>
+              Save
+            </Button>
             <Button variant="outline" onClick={onReset}>
               Reset
             </Button>
+            <Button variant="ghost" onClick={onClearAll}>
+              Clear all settings
+            </Button>
             {saved && <span className="text-sm text-emerald-600">Saved.</span>}
-            {error && <span className="text-sm text-destructive">{error}</span>}
           </div>
         </CardContent>
       </Card>

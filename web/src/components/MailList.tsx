@@ -2,12 +2,9 @@ import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { useAccount } from "wagmi";
 import type { MailEvent } from "@heed/core";
-import {
-  useQuery,
-  useQueryClient,
-  type UseQueryResult,
-} from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { MailCard } from "./MailCard";
+import { ErrorBoundary } from "./ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -16,21 +13,30 @@ import { getEffectiveConfig } from "../lib/settings";
 import { getFlags, setRead } from "../lib/db";
 
 interface Props {
-  query: UseQueryResult<MailEvent[]>;
+  mail: MailEvent[];
   direction: "received" | "sent";
-  limit: number;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+  onRefresh: () => void;
+  hasMore: boolean;
   onLoadMore: () => void;
+  isLoadingMore: boolean;
   emptyText: string;
 }
 
 export function MailList({
-  query,
+  mail,
   direction,
-  limit,
+  isLoading,
+  isFetching,
+  error,
+  onRefresh,
+  hasMore,
   onLoadMore,
+  isLoadingMore,
   emptyText,
 }: Props) {
-  const { data, isLoading, isFetching, error, refetch } = query;
   const [filter, setFilter] = useState("");
 
   const { address } = useAccount();
@@ -58,7 +64,7 @@ export function MailList({
     direction === "sent" ? m.recipient : m.sender;
 
   const f = filter.trim().toLowerCase();
-  const filtered = (data ?? []).filter(
+  const filtered = mail.filter(
     (m) =>
       !f ||
       counterpartyOf(m).toLowerCase().includes(f) ||
@@ -78,7 +84,7 @@ export function MailList({
         <Button
           variant="outline"
           size="icon-sm"
-          onClick={() => refetch()}
+          onClick={onRefresh}
           disabled={isFetching}
           aria-label="Refresh"
         >
@@ -96,32 +102,33 @@ export function MailList({
         <div className="text-sm text-destructive">{errorMessage(error)}</div>
       ) : filtered.length === 0 ? (
         <div className="text-sm text-muted-foreground">
-          {data && data.length > 0 ? "No matches." : emptyText}
+          {mail.length > 0 ? "No matches." : emptyText}
         </div>
       ) : (
         <>
           {filtered.map((m) => (
-            <MailCard
-              key={m.txHash}
-              mail={m}
-              direction={direction}
-              read={
-                direction === "received" && flags
-                  ? (flags[m.txHash] ?? false)
-                  : undefined
-              }
-              onOpened={direction === "received" ? markRead : undefined}
-            />
+            <ErrorBoundary key={m.txHash}>
+              <MailCard
+                mail={m}
+                direction={direction}
+                read={
+                  direction === "received" && flags
+                    ? (flags[m.txHash] ?? false)
+                    : undefined
+                }
+                onOpened={direction === "received" ? markRead : undefined}
+              />
+            </ErrorBoundary>
           ))}
-          {data && data.length >= limit && (
+          {hasMore && (
             <div className="flex justify-center pt-1">
               <Button
                 variant="outline"
                 size="sm"
                 onClick={onLoadMore}
-                disabled={isFetching}
+                disabled={isLoadingMore}
               >
-                {isFetching ? "Loading…" : "Load more"}
+                {isLoadingMore ? "Loading…" : "Load more"}
               </Button>
             </div>
           )}
