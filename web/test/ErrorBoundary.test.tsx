@@ -40,7 +40,9 @@ describe("ErrorBoundary", () => {
       return <div>recovered</div>;
     }
     render(
-      <ErrorBoundary fallback={(e, reset) => <button onClick={reset}>{e.message}</button>}>
+      <ErrorBoundary
+        fallback={(e, reset) => <button onClick={reset}>{e.message}</button>}
+      >
         <Maybe />
       </ErrorBoundary>,
     );

@@ -1,0 +1,13 @@
+node_modules
+**/node_modules
+**/dist
+core-lib/dist
+web/dist
+web/playwright-report
+web/test-results
+package-lock.json
+**/*.lock
+contracts/lib
+contracts/out
+contracts/cache
+contracts/broadcast

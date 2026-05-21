@@ -27,8 +27,12 @@ describe("fetchCidWithFallback", () => {
     );
 
     expect(result).toEqual(data);
-    expect(mockFetch.mock.calls[0]![0]).toBe("https://gw1.example.com/ipfs/Qmfoo");
-    expect(mockFetch.mock.calls[1]![0]).toBe("https://gw2.example.com/ipfs/Qmfoo");
+    expect(mockFetch.mock.calls[0]![0]).toBe(
+      "https://gw1.example.com/ipfs/Qmfoo",
+    );
+    expect(mockFetch.mock.calls[1]![0]).toBe(
+      "https://gw2.example.com/ipfs/Qmfoo",
+    );
   });
 
   it("retries a transient failure before moving on", async () => {
@@ -41,10 +45,14 @@ describe("fetchCidWithFallback", () => {
         arrayBuffer: async () => data.buffer,
       } as Response);
 
-    const result = await fetchCidWithFallback("Qmbar", ["https://gw1.example.com"], {
-      retries: 1,
-      backoffMs: 0,
-    });
+    const result = await fetchCidWithFallback(
+      "Qmbar",
+      ["https://gw1.example.com"],
+      {
+        retries: 1,
+        backoffMs: 0,
+      },
+    );
 
     expect(result).toEqual(data);
     expect(mockFetch).toHaveBeenCalledTimes(2);
@@ -55,9 +63,13 @@ describe("fetchCidWithFallback", () => {
     mockFetch.mockResolvedValue({ ok: false, status: 502 } as Response);
 
     await expect(
-      fetchCidWithFallback("Qmbad", ["https://gw1.example.com", "https://gw2.example.com"], {
-        retries: 0,
-      }),
+      fetchCidWithFallback(
+        "Qmbad",
+        ["https://gw1.example.com", "https://gw2.example.com"],
+        {
+          retries: 0,
+        },
+      ),
     ).rejects.toThrow("all gateways failed");
   });
 

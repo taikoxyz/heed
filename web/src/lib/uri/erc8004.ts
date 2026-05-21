@@ -19,22 +19,31 @@ export const resolveErc8004: UriResolver = async (uri, ctx) => {
       raw: uri,
       source: "erc8004",
       display_name: label,
-      description: "ERC-8004 agent identity. No registry configured for this chain; identity claim is unverified.",
+      description:
+        "ERC-8004 agent identity. No registry configured for this chain; identity claim is unverified.",
       registry_url: registry,
       verified: false,
     };
   }
 
   try {
-    const contract = getContract({ address: registry, abi: ERC8004_REGISTRY_ABI, client: ctx.client });
-    const [owner, agentURI] = (await contract.read.getAgent([BigInt(id)])) as [`0x${string}`, string];
+    const contract = getContract({
+      address: registry,
+      abi: ERC8004_REGISTRY_ABI,
+      client: ctx.client,
+    });
+    const [owner, agentURI] = (await contract.read.getAgent([BigInt(id)])) as [
+      `0x${string}`,
+      string,
+    ];
     const registered = owner !== "0x0000000000000000000000000000000000000000";
     if (!registered) {
       return {
         raw: uri,
         source: "erc8004",
         display_name: label,
-        description: "ERC-8004 registry has no record for this agent id; identity claim is unverified.",
+        description:
+          "ERC-8004 registry has no record for this agent id; identity claim is unverified.",
         verified: false,
       };
     }
@@ -42,7 +51,8 @@ export const resolveErc8004: UriResolver = async (uri, ctx) => {
       raw: uri,
       source: "erc8004",
       display_name: label,
-      description: "ERC-8004 agent identity verified against the on-chain registry.",
+      description:
+        "ERC-8004 agent identity verified against the on-chain registry.",
       owner,
       registry_url: agentURI || registry,
       verified: true,
@@ -52,7 +62,8 @@ export const resolveErc8004: UriResolver = async (uri, ctx) => {
       raw: uri,
       source: "erc8004",
       display_name: label,
-      description: "ERC-8004 registry lookup failed; identity claim is unverified.",
+      description:
+        "ERC-8004 registry lookup failed; identity claim is unverified.",
       registry_url: registry,
       verified: false,
     };

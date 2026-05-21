@@ -35,7 +35,10 @@ describe("default URI resolvers", () => {
 
   it("verifies an erc8004 agent against a configured registry", async () => {
     const client = {
-      readContract: async () => ["0x1111111111111111111111111111111111111111", "https://agent.example/card"],
+      readContract: async () => [
+        "0x1111111111111111111111111111111111111111",
+        "https://agent.example/card",
+      ],
     } as unknown as PublicClient;
     const r = await resolveUri("erc8004:taiko:42", {
       client,
@@ -50,7 +53,10 @@ describe("default URI resolvers", () => {
 
   it("treats a zero-owner registry record as unverified", async () => {
     const client = {
-      readContract: async () => ["0x0000000000000000000000000000000000000000", ""],
+      readContract: async () => [
+        "0x0000000000000000000000000000000000000000",
+        "",
+      ],
     } as unknown as PublicClient;
     const r = await resolveUri("erc8004:taiko:7", {
       client,
@@ -87,7 +93,12 @@ describe("resolver registry", () => {
   it("supports custom resolvers added via registerResolver", async () => {
     registerResolver(
       (u) => u.startsWith("did:"),
-      async (u) => ({ raw: u, source: "unknown", display_name: "DID identity", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "unknown",
+        display_name: "DID identity",
+        verified: false,
+      }),
     );
     const r = await resolveUri("did:web:example.com");
     expect(r.display_name).toBe("DID identity");
@@ -111,11 +122,21 @@ describe("resolver registry", () => {
     clearResolvers();
     registerResolver(
       () => true,
-      async (u) => ({ raw: u, source: "https", display_name: "first", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "https",
+        display_name: "first",
+        verified: false,
+      }),
     );
     registerResolver(
       () => true,
-      async (u) => ({ raw: u, source: "https", display_name: "second", verified: false }),
+      async (u) => ({
+        raw: u,
+        source: "https",
+        display_name: "second",
+        verified: false,
+      }),
     );
     const r = await resolveUri("anything");
     expect(r.display_name).toBe("first");

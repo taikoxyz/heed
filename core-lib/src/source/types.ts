@@ -16,8 +16,16 @@ export interface MailPage {
 }
 
 export interface MailSource {
-  listInbox(addr: Address, sinceBlock?: bigint, limit?: number): Promise<MailEvent[]>;
-  listOutbox(addr: Address, sinceBlock?: bigint, limit?: number): Promise<MailEvent[]>;
+  listInbox(
+    addr: Address,
+    sinceBlock?: bigint,
+    limit?: number,
+  ): Promise<MailEvent[]>;
+  listOutbox(
+    addr: Address,
+    sinceBlock?: bigint,
+    limit?: number,
+  ): Promise<MailEvent[]>;
   listInboxPage(addr: Address, opts?: ListOptions): Promise<MailPage>;
   listOutboxPage(addr: Address, opts?: ListOptions): Promise<MailPage>;
   getInbox(addr: Address): Promise<InboxView>;

@@ -43,9 +43,7 @@ test("decrypts the seeded envelope and shows a matching signer badge", async ({
   await expect(page.getByText(state.matchTitle)).toBeVisible();
   await expect(page.getByText(state.matchBody)).toBeVisible();
   await expect(page.getByText("ACME Alerts")).toBeVisible();
-  await expect(
-    page.locator(`a[href="${state.matchActionUrl}"]`),
-  ).toBeVisible();
+  await expect(page.locator(`a[href="${state.matchActionUrl}"]`)).toBeVisible();
   await expect(
     page.getByText("signature matches sender", { exact: false }),
   ).toBeVisible();

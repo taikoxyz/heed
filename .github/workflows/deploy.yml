@@ -1,0 +1,44 @@
+# Deploys the web app to Vercel on push to main.
+#
+# Requires repository secrets (Settings → Secrets and variables → Actions):
+#   VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID
+# Without them the job exits early so forks and unconfigured repos stay green.
+
+name: deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Deploy to Vercel
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+        run: |
+          if [ -z "$VERCEL_TOKEN" ]; then
+            echo "VERCEL_TOKEN not set — skipping deploy."
+            exit 0
+          fi
+          npx vercel@latest pull --yes --environment=production --token="$VERCEL_TOKEN"
+          npx vercel@latest build --prod --token="$VERCEL_TOKEN"
+          npx vercel@latest deploy --prebuilt --prod --token="$VERCEL_TOKEN"

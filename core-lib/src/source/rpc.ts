@@ -7,13 +7,16 @@ import type { MailEvent } from "../types";
 import { createReadClient } from "../contract/client";
 
 const MAIL_SENT = parseAbiItem(
-  "event MailSent(address indexed sender, address indexed recipient, bytes32 contentRef, uint32 valueGwei)"
+  "event MailSent(address indexed sender, address indexed recipient, bytes32 contentRef, uint32 valueGwei)",
 );
 
 const DEFAULT_LOG_WINDOW = 50_000n;
 
 export function createRpcMailSource(opts: {
-  client: PublicClient; contract: Address; deployedAtBlock: bigint; logWindow?: bigint;
+  client: PublicClient;
+  contract: Address;
+  deployedAtBlock: bigint;
+  logWindow?: bigint;
 }): MailSource {
   const reader = createReadClient(opts.client, opts.contract);
   const windowSize = opts.logWindow ?? DEFAULT_LOG_WINDOW;
@@ -29,10 +32,14 @@ export function createRpcMailSource(opts: {
   }
 
   async function page(
-    args: object, sinceBlock?: bigint, limit = 100, before?: bigint,
+    args: object,
+    sinceBlock?: bigint,
+    limit = 100,
+    before?: bigint,
   ): Promise<MailPage> {
     const floor = sinceBlock ?? opts.deployedAtBlock;
-    let hi = before !== undefined ? before - 1n : await opts.client.getBlockNumber();
+    let hi =
+      before !== undefined ? before - 1n : await opts.client.getBlockNumber();
     if (hi < floor) return { items: [] };
 
     // Walk backward in bounded windows so each page only scans from its cursor
@@ -42,7 +49,11 @@ export function createRpcMailSource(opts: {
     while (hi >= floor && collected.length <= limit) {
       const lo = hi - windowSize + 1n > floor ? hi - windowSize + 1n : floor;
       const logs = await opts.client.getLogs({
-        address: opts.contract, event: MAIL_SENT, args, fromBlock: lo, toBlock: hi,
+        address: opts.contract,
+        event: MAIL_SENT,
+        args,
+        fromBlock: lo,
+        toBlock: hi,
       });
       if (logs.length > 0) collected = (logs as any[]).concat(collected);
       if (lo === floor) break;
@@ -54,7 +65,8 @@ export function createRpcMailSource(opts: {
     }
     // Keep pages block-aligned: never split one block across pages, or the next
     // page (toBlock = cursor - 1) would skip that block's remaining events.
-    const blockAt = (i: number) => (collected[i] as { blockNumber: bigint }).blockNumber;
+    const blockAt = (i: number) =>
+      (collected[i] as { blockNumber: bigint }).blockNumber;
     let cut = collected.length - limit;
     const cutBlock = blockAt(cut);
     while (cut > 0 && blockAt(cut - 1) === cutBlock) cut--;
@@ -75,10 +87,13 @@ export function createRpcMailSource(opts: {
     listOutboxPage(addr, o = {}) {
       return page({ sender: addr }, o.sinceBlock, o.limit, o.before);
     },
-    async getInbox(addr) { return reader.getInbox(addr); },
+    async getInbox(addr) {
+      return reader.getInbox(addr);
+    },
     subscribe(addr, on) {
       return opts.client.watchEvent({
-        address: opts.contract, event: MAIL_SENT,
+        address: opts.contract,
+        event: MAIL_SENT,
         args: { recipient: addr },
         onLogs: async (logs) => {
           const events = await attachTimestamps([...logs]);
@@ -91,8 +106,12 @@ export function createRpcMailSource(opts: {
 
 function toEvent(log: any, blockTimestamp: bigint): MailEvent {
   return {
-    txHash: log.transactionHash, blockNumber: log.blockNumber, blockTimestamp,
-    sender: log.args.sender, recipient: log.args.recipient,
-    contentRef: log.args.contentRef, valueGwei: Number(log.args.valueGwei),
+    txHash: log.transactionHash,
+    blockNumber: log.blockNumber,
+    blockTimestamp,
+    sender: log.args.sender,
+    recipient: log.args.recipient,
+    contentRef: log.args.contentRef,
+    valueGwei: Number(log.args.valueGwei),
   };
 }

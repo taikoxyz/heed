@@ -14,7 +14,10 @@ function clientFor(rpcUrl: string): PublicClient {
   return c;
 }
 
-export function resolveIdentity(uri: string, rpcUrl: string): Promise<ResolvedIdentity> {
+export function resolveIdentity(
+  uri: string,
+  rpcUrl: string,
+): Promise<ResolvedIdentity> {
   const key = `${rpcUrl}\n${uri}`;
   let p = cache.get(key);
   if (!p) {

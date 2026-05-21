@@ -1,10 +1,5 @@
 import { defineConfig } from "@playwright/test";
-import {
-  CONTRACT,
-  DEPLOYED_AT_BLOCK,
-  IPFS_URL,
-  RPC_URL,
-} from "./e2e/harness";
+import { CONTRACT, DEPLOYED_AT_BLOCK, IPFS_URL, RPC_URL } from "./e2e/harness";
 
 export default defineConfig({
   testDir: "e2e",

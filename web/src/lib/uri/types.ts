@@ -16,4 +16,7 @@ export interface UriResolverContext {
 }
 
 export type UriMatcher = (uri: string) => boolean;
-export type UriResolver = (uri: string, ctx?: UriResolverContext) => Promise<ResolvedIdentity>;
+export type UriResolver = (
+  uri: string,
+  ctx?: UriResolverContext,
+) => Promise<ResolvedIdentity>;

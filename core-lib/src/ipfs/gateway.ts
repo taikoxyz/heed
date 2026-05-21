@@ -6,7 +6,10 @@ export async function fetchCid(
   gatewayUrl: string,
   signal?: AbortSignal,
 ): Promise<Uint8Array> {
-  const r = await fetch(`${gatewayUrl.replace(/\/$/, "")}/ipfs/${cid}`, signal ? { signal } : {});
+  const r = await fetch(
+    `${gatewayUrl.replace(/\/$/, "")}/ipfs/${cid}`,
+    signal ? { signal } : {},
+  );
   if (!r.ok) throw new Error(`gateway ${r.status}`);
   return new Uint8Array(await r.arrayBuffer());
 }

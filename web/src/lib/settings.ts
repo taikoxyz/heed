@@ -61,7 +61,9 @@ export function getEffectiveConfig(): EffectiveConfig {
     chainId: config.chainId,
     deployedAtBlock: config.deployedAtBlock,
     rpcUrl: s.rpcUrl || config.rpcUrl,
-    ipfsGateways: s.ipfsGateway ? parseGateways(s.ipfsGateway) : config.ipfsGateways,
+    ipfsGateways: s.ipfsGateway
+      ? parseGateways(s.ipfsGateway)
+      : config.ipfsGateways,
     indexerUrl: s.indexerUrl || config.indexerUrl,
     maxFeeGwei: s.maxFeeGwei,
     pinataJwt: s.pinataJwt,

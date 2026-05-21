@@ -30,7 +30,9 @@ const account = privateKeyToAccount(PRIVATE_KEY);
 const senderAccount = privateKeyToAccount(SENDER_PK);
 
 const sigBytes = new Uint8Array(
-  SIG_HEX.slice(2).match(/.{2}/g)!.map((b) => parseInt(b, 16)),
+  SIG_HEX.slice(2)
+    .match(/.{2}/g)!
+    .map((b) => parseInt(b, 16)),
 );
 const sk = deriveX25519Private(sigBytes);
 const pub = deriveX25519Public(sk);
@@ -58,13 +60,14 @@ let signedEnvelope: Envelope;
 const fetchedRef: { current: Uint8Array | null } = { current: MAIL_BYTES };
 
 vi.mock("@heed/core", async () => {
-  const actual = await vi.importActual<typeof import("@heed/core")>(
-    "@heed/core",
-  );
+  const actual =
+    await vi.importActual<typeof import("@heed/core")>("@heed/core");
   return {
     ...actual,
     fetchCid: vi.fn(async () => fetchedRef.current ?? new Uint8Array()),
-    fetchCidWithFallback: vi.fn(async () => fetchedRef.current ?? new Uint8Array()),
+    fetchCidWithFallback: vi.fn(
+      async () => fetchedRef.current ?? new Uint8Array(),
+    ),
   };
 });
 
@@ -121,7 +124,8 @@ describe("useMailDecryption", () => {
     const { connect } = await import("@wagmi/core");
     await connect(wagmiConfig, { connector: wagmiConfig.connectors[0]! });
 
-    const { useMailDecryption } = await import("../src/hooks/useMailDecryption");
+    const { useMailDecryption } =
+      await import("../src/hooks/useMailDecryption");
     const { result } = renderHook(() => useMailDecryption(), { wrapper });
 
     let decoded: DecodedPayload | undefined;
@@ -141,7 +145,8 @@ describe("useMailDecryption", () => {
 
     fetchedRef.current = envelopeBytes;
 
-    const { useMailDecryption } = await import("../src/hooks/useMailDecryption");
+    const { useMailDecryption } =
+      await import("../src/hooks/useMailDecryption");
     const { result } = renderHook(() => useMailDecryption(), { wrapper });
 
     let decoded: DecodedPayload | undefined;
@@ -152,7 +157,8 @@ describe("useMailDecryption", () => {
     });
 
     expect(decoded?.kind).toBe("envelope");
-    if (decoded?.kind === "envelope") expect(decoded.envelope).toEqual(signedEnvelope);
+    if (decoded?.kind === "envelope")
+      expect(decoded.envelope).toEqual(signedEnvelope);
   });
 
   it("returns kind=unknown for non-payload bytes", async () => {
@@ -164,7 +170,8 @@ describe("useMailDecryption", () => {
       [{ rcpt: account.address, keyNonce: 0, pub }],
     );
 
-    const { useMailDecryption } = await import("../src/hooks/useMailDecryption");
+    const { useMailDecryption } =
+      await import("../src/hooks/useMailDecryption");
     const { result } = renderHook(() => useMailDecryption(), { wrapper });
 
     let decoded: DecodedPayload | undefined;

@@ -56,11 +56,15 @@ describe("createIndexerMailSource", () => {
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
-    const { items } = await src.listInboxPage("0xRecipient" as any, { limit: 10 });
+    const { items } = await src.listInboxPage("0xRecipient" as any, {
+      limit: 10,
+    });
 
     expect(items).toHaveLength(1);
     expect(items[0]!.txHash).toBe("0xabc");
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.a).toBe("0xrecipient");
     expect(body.variables.n).toBe(10);
     expect(body.query).toContain("recipient");
@@ -80,7 +84,9 @@ describe("createIndexerMailSource", () => {
     expect(result).toHaveLength(1);
     expect(result[0]!.blockNumber).toBe(1n);
     expect(result[0]!.valueGwei).toBe(1);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.a).toBe("0xsender");
     expect(body.variables.n).toBe(50);
     expect(body.query).toContain("sender");
@@ -89,14 +95,14 @@ describe("createIndexerMailSource", () => {
   it("getInbox throws with the expected message", async () => {
     const src = createIndexerMailSource(ENDPOINT);
     await expect(src.getInbox("0xAddr" as any)).rejects.toThrow(
-      "getInbox via indexer: prefer RPC reader for fresh fee/keys"
+      "getInbox via indexer: prefer RPC reader for fresh fee/keys",
     );
   });
 
   it("subscribe throws with the expected message", () => {
     const src = createIndexerMailSource(ENDPOINT);
     expect(() => src.subscribe("0xAddr" as any, vi.fn())).toThrow(
-      "subscribe via indexer requires WS endpoint; impl as poll fallback"
+      "subscribe via indexer requires WS endpoint; impl as poll fallback",
     );
   });
 
@@ -104,11 +110,16 @@ describe("createIndexerMailSource", () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ data: null, errors: [{ message: "field not found" }] }),
+      json: async () => ({
+        data: null,
+        errors: [{ message: "field not found" }],
+      }),
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
-    await expect(src.listInbox("0xR" as any)).rejects.toThrow("field not found");
+    await expect(src.listInbox("0xR" as any)).rejects.toThrow(
+      "field not found",
+    );
   });
 
   it("uses default limit of 100 when not specified", async () => {
@@ -120,7 +131,9 @@ describe("createIndexerMailSource", () => {
 
     const src = createIndexerMailSource(ENDPOINT);
     await src.listInbox("0xR" as any);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.n).toBe(100);
     expect(body.variables.since).toBe("0");
   });
@@ -134,7 +147,9 @@ describe("createIndexerMailSource", () => {
 
     const src = createIndexerMailSource(ENDPOINT);
     await src.listInbox("0xR" as any, 18000000n, 25);
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.since).toBe("18000000");
     expect(body.variables.n).toBe(25);
     expect(body.query).toContain("blockNumber_gte");
@@ -153,8 +168,13 @@ describe("createIndexerMailSource", () => {
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
-    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { before: 99n, limit: 2 });
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, {
+      before: 99n,
+      limit: 2,
+    });
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.before).toBe("99");
     expect(body.query).toContain("blockNumber_lt");
     // The oldest block (9) might be split by the page boundary, so it is dropped
@@ -176,7 +196,9 @@ describe("createIndexerMailSource", () => {
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
-    const { items, nextCursor } = await src.listInboxPage("0xR" as any, { limit: 3 });
+    const { items, nextCursor } = await src.listInboxPage("0xR" as any, {
+      limit: 3,
+    });
     expect(items.map((m) => m.blockNumber)).toEqual([10n]);
     expect(nextCursor).toBe(10n);
   });
@@ -185,12 +207,17 @@ describe("createIndexerMailSource", () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ data: { mails: [makeRawMail()] }, errors: undefined }),
+      json: async () => ({
+        data: { mails: [makeRawMail()] },
+        errors: undefined,
+      }),
     } as Response);
 
     const src = createIndexerMailSource(ENDPOINT);
     const { nextCursor } = await src.listInboxPage("0xR" as any, { limit: 10 });
-    const body = JSON.parse((mockFetch.mock.calls[0]![1] as RequestInit).body as string);
+    const body = JSON.parse(
+      (mockFetch.mock.calls[0]![1] as RequestInit).body as string,
+    );
     expect(body.variables.before).toBeUndefined();
     expect(body.query).not.toContain("blockNumber_lt");
     expect(nextCursor).toBeUndefined();
@@ -213,15 +240,17 @@ describe("createIndexerMailSource", () => {
       ok: true,
       json: async () => ({
         data: {
-          mails: [{
-            txHash: "0xdeadbeef",
-            blockNumber: "18000000",
-            blockTimestamp: "1700000000",
-            sender: "0xaaa",
-            recipient: "0xbbb",
-            contentRef: "0xccc",
-            valueGwei: "5000",
-          }],
+          mails: [
+            {
+              txHash: "0xdeadbeef",
+              blockNumber: "18000000",
+              blockTimestamp: "1700000000",
+              sender: "0xaaa",
+              recipient: "0xbbb",
+              contentRef: "0xccc",
+              valueGwei: "5000",
+            },
+          ],
         },
         errors: undefined,
       }),

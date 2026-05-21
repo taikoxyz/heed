@@ -168,11 +168,7 @@ export async function buildFixtures(
 function encodeLog(log: SeedLog, recipient: Address, index: number) {
   return {
     address: CONTRACT,
-    topics: [
-      MAIL_SENT_TOPIC,
-      pad(log.sender),
-      pad(recipient),
-    ],
+    topics: [MAIL_SENT_TOPIC, pad(log.sender), pad(recipient)],
     data: encodeAbiParameters(
       [{ type: "bytes32" }, { type: "uint32" }],
       [log.contentRef, 100],
@@ -221,8 +217,7 @@ export async function startMockRpc(
         // seeded logs that match (or when no recipient filter is given).
         if (
           recipientTopic &&
-          recipientTopic.toLowerCase() !==
-            pad(fixtures.recipient).toLowerCase()
+          recipientTopic.toLowerCase() !== pad(fixtures.recipient).toLowerCase()
         ) {
           return [];
         }
