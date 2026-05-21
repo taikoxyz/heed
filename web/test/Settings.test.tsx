@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Settings } from "../src/components/Settings";
 import {
   clearSettings,
@@ -7,6 +8,15 @@ import {
   saveSettings,
   type Settings as SettingsT,
 } from "../src/lib/settings";
+
+function renderSettings() {
+  const client = new QueryClient();
+  return render(
+    <QueryClientProvider client={client}>
+      <Settings />
+    </QueryClientProvider>,
+  );
+}
 
 describe("Settings persistence", () => {
   beforeEach(() => {
@@ -36,7 +46,7 @@ describe("Settings persistence", () => {
   });
 
   it("Settings UI saves edits to localStorage", () => {
-    render(<Settings />);
+    renderSettings();
     const rpc = screen.getByPlaceholderText(
       "https://rpc.mainnet.taiko.xyz",
     ) as HTMLInputElement;

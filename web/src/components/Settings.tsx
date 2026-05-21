@@ -1,10 +1,20 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import {
   EMPTY_SETTINGS,
   loadSettings,
   saveSettings,
   type Settings as SettingsT,
 } from "../lib/settings";
+import {
+  exportAll,
+  importAll,
+  parseImport,
+  downloadJson,
+  type HeedExport,
+} from "../lib/db";
+import { errorMessage } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +25,14 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function isHttpUrl(s: string): boolean {
   if (!s) return true;
@@ -30,6 +48,55 @@ export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const [importOpen, setImportOpen] = useState(false);
+  const [importData, setImportData] = useState<HeedExport | null>(null);
+
+  async function onExport() {
+    try {
+      const data = await exportAll();
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadJson(data, `heed-export-${stamp}.json`);
+      setExportOpen(false);
+      toast.success("Backup downloaded.");
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
+
+  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        setImportData(parseImport(String(reader.result)));
+        setImportOpen(true);
+      } catch (err) {
+        toast.error(errorMessage(err));
+      }
+    };
+    reader.onerror = () => toast.error("Could not read the file.");
+    reader.readAsText(file);
+  }
+
+  async function onImport(mode: "merge" | "replace") {
+    if (!importData) return;
+    try {
+      await importAll(importData, mode);
+      setDraft(importData.settings);
+      await qc.invalidateQueries();
+      setImportOpen(false);
+      setImportData(null);
+      toast.success("Backup restored.");
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
 
   function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
     setDraft((d) => ({ ...d, [key]: value }));
@@ -63,91 +130,167 @@ export function Settings() {
   }
 
   return (
-    <Card className="max-w-xl">
-      <CardHeader>
-        <CardTitle className="text-lg">Settings</CardTitle>
-        <CardDescription>
-          Empty fields fall back to the build-time defaults. Saved to
-          localStorage on this device only.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="settings-rpc">RPC URL</Label>
-          <Input
-            id="settings-rpc"
-            type="text"
-            value={draft.rpcUrl}
-            onChange={(e) => update("rpcUrl", e.target.value)}
-            placeholder="https://rpc.mainnet.taiko.xyz"
-            className="font-mono"
-          />
-        </div>
+    <div className="max-w-xl space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Settings</CardTitle>
+          <CardDescription>
+            Empty fields fall back to the build-time defaults. Saved to
+            localStorage on this device only.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1">
+            <Label htmlFor="settings-rpc">RPC URL</Label>
+            <Input
+              id="settings-rpc"
+              type="text"
+              value={draft.rpcUrl}
+              onChange={(e) => update("rpcUrl", e.target.value)}
+              placeholder="https://rpc.mainnet.taiko.xyz"
+              className="font-mono"
+            />
+          </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-ipfs">IPFS gateway</Label>
-          <Input
-            id="settings-ipfs"
-            type="text"
-            value={draft.ipfsGateway}
-            onChange={(e) => update("ipfsGateway", e.target.value)}
-            placeholder="https://gateway.pinata.cloud"
-            className="font-mono"
-          />
-        </div>
+          <div className="space-y-1">
+            <Label htmlFor="settings-ipfs">IPFS gateway</Label>
+            <Input
+              id="settings-ipfs"
+              type="text"
+              value={draft.ipfsGateway}
+              onChange={(e) => update("ipfsGateway", e.target.value)}
+              placeholder="https://gateway.pinata.cloud"
+              className="font-mono"
+            />
+          </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-indexer">Indexer URL</Label>
-          <Input
-            id="settings-indexer"
-            type="text"
-            value={draft.indexerUrl}
-            onChange={(e) => update("indexerUrl", e.target.value)}
-            placeholder="(unset → falls back to RPC log scan)"
-            className="font-mono"
-          />
-        </div>
+          <div className="space-y-1">
+            <Label htmlFor="settings-indexer">Indexer URL</Label>
+            <Input
+              id="settings-indexer"
+              type="text"
+              value={draft.indexerUrl}
+              onChange={(e) => update("indexerUrl", e.target.value)}
+              placeholder="(unset → falls back to RPC log scan)"
+              className="font-mono"
+            />
+          </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-fee">Max anti-spam fee (gwei)</Label>
-          <Input
-            id="settings-fee"
-            type="number"
-            min={0}
-            value={draft.maxFeeGwei || ""}
-            onChange={(e) => update("maxFeeGwei", Number(e.target.value) || 0)}
-            placeholder="0"
-            className="font-mono"
-          />
-        </div>
+          <div className="space-y-1">
+            <Label htmlFor="settings-fee">Max anti-spam fee (gwei)</Label>
+            <Input
+              id="settings-fee"
+              type="number"
+              min={0}
+              value={draft.maxFeeGwei || ""}
+              onChange={(e) =>
+                update("maxFeeGwei", Number(e.target.value) || 0)
+              }
+              placeholder="0"
+              className="font-mono"
+            />
+          </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="settings-pinata">Pinata JWT</Label>
-          <Input
-            id="settings-pinata"
-            type="password"
-            value={draft.pinataJwt}
-            onChange={(e) => update("pinataJwt", e.target.value)}
-            placeholder="(required to send mail)"
-            className="font-mono"
-            autoComplete="off"
-          />
+          <div className="space-y-1">
+            <Label htmlFor="settings-pinata">Pinata JWT</Label>
+            <Input
+              id="settings-pinata"
+              type="password"
+              value={draft.pinataJwt}
+              onChange={(e) => update("pinataJwt", e.target.value)}
+              placeholder="(required to send mail)"
+              className="font-mono"
+              autoComplete="off"
+            />
+            <p className="text-xs text-muted-foreground">
+              Used to pin encrypted mail to IPFS. Generate a scoped
+              "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
+              in this browser's localStorage.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 pt-1">
+            <Button onClick={onSave}>Save</Button>
+            <Button variant="outline" onClick={onReset}>
+              Reset
+            </Button>
+            {saved && <span className="text-sm text-emerald-600">Saved.</span>}
+            {error && <span className="text-sm text-destructive">{error}</span>}
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg">Backup &amp; restore</CardTitle>
+          <CardDescription>
+            Export all locally cached mail, read state, drafts and settings to a
+            JSON file, or restore from one.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
+              Export data
+            </Button>
+            <Button variant="outline" onClick={() => fileRef.current?.click()}>
+              Import data
+            </Button>
+            <input
+              ref={fileRef}
+              type="file"
+              accept="application/json"
+              className="hidden"
+              aria-label="Import backup file"
+              onChange={onFile}
+            />
+          </div>
           <p className="text-xs text-muted-foreground">
-            Used to pin encrypted mail to IPFS. Generate a scoped
-            "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only in
-            this browser's localStorage.
+            The backup contains decrypted message content in plaintext. Keep the
+            file somewhere safe.
           </p>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div className="flex items-center gap-2 pt-1">
-          <Button onClick={onSave}>Save</Button>
-          <Button variant="outline" onClick={onReset}>
-            Reset
-          </Button>
-          {saved && <span className="text-sm text-emerald-600">Saved.</span>}
-          {error && <span className="text-sm text-destructive">{error}</span>}
-        </div>
-      </CardContent>
-    </Card>
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export your data?</DialogTitle>
+            <DialogDescription>
+              This downloads a JSON file with your settings, cached mail, drafts
+              and read state — including decrypted message content in plaintext.
+              Anyone with the file can read your mail.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setExportOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onExport}>Download backup</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore from backup?</DialogTitle>
+            <DialogDescription>
+              Merge keeps your current data and adds the backup's. Replace wipes
+              local data first, then restores the backup exactly.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setImportOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={() => onImport("replace")}>
+              Replace
+            </Button>
+            <Button onClick={() => onImport("merge")}>Merge</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

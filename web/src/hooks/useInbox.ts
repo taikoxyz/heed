@@ -4,10 +4,20 @@ import { createPublicClient, http } from "viem";
 import { taiko } from "viem/chains";
 import { createRpcMailSource, createIndexerMailSource } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
+import { getMessages, putMessages } from "../lib/db";
 
 export function useInbox(limit = 50) {
   const { address } = useAccount();
   const cfg = getEffectiveConfig();
+  const account = address?.toLowerCase();
+
+  const cache = useQuery({
+    queryKey: ["mailCache", "received", cfg.chainId, account],
+    queryFn: () => getMessages(cfg.chainId, account!, "received"),
+    enabled: !!address,
+    staleTime: Infinity,
+  });
+
   return useQuery({
     queryKey: [
       "inbox",
@@ -18,6 +28,7 @@ export function useInbox(limit = 50) {
       limit,
     ],
     enabled: !!address,
+    placeholderData: () => cache.data,
     queryFn: async () => {
       const source = cfg.indexerUrl
         ? createIndexerMailSource(cfg.indexerUrl)
@@ -29,7 +40,11 @@ export function useInbox(limit = 50) {
             contract: cfg.contractAddress,
             deployedAtBlock: cfg.deployedAtBlock,
           });
-      return source.listInbox(address!, undefined, limit);
+      const result = await source.listInbox(address!, undefined, limit);
+      await putMessages(cfg.chainId, address!, "received", result).catch(
+        () => {},
+      );
+      return result;
     },
   });
 }

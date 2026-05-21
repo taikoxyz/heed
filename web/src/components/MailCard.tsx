@@ -11,9 +11,13 @@ import { Card, CardContent } from "@/components/ui/card";
 export function MailCard({
   mail,
   direction = "received",
+  read,
+  onOpened,
 }: {
   mail: MailEvent;
   direction?: "received" | "sent";
+  read?: boolean;
+  onOpened?: (txHash: string) => void;
 }) {
   const [content, setContent] = useState<DecodedPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -26,6 +30,7 @@ export function MailCard({
     setBusy(true);
     try {
       setContent(await decrypt(mail.contentRef, { force }));
+      onOpened?.(mail.txHash);
     } catch (e) {
       setError(errorMessage(e));
     } finally {
@@ -52,9 +57,18 @@ export function MailCard({
     <Card size="sm">
       <CardContent className="space-y-2">
         <div className="flex items-start justify-between gap-2">
-          <div className="text-sm text-muted-foreground">
-            {counterpartyLabel}{" "}
-            <span className="font-mono">{counterparty}</span>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            {read === false && (
+              <span
+                className="size-2 shrink-0 rounded-full bg-primary"
+                aria-label="Unread"
+                title="Unread"
+              />
+            )}
+            <span>
+              {counterpartyLabel}{" "}
+              <span className="font-mono">{counterparty}</span>
+            </span>
           </div>
           {direction === "received" && (
             <Button variant="ghost" size="xs" onClick={reply}>

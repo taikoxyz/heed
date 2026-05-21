@@ -1,23 +1,24 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPublicClient, http, isAddress, type Address } from "viem";
 import { taiko } from "viem/chains";
 import { createReadClient } from "@heed/core";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAccount } from "wagmi";
 import { toast } from "sonner";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
 import { useCompose } from "../lib/composeDraft";
 import { getEffectiveConfig } from "../lib/settings";
+import {
+  clearDraft as clearDbDraft,
+  getDraft,
+  saveDraft as saveDbDraft,
+} from "../lib/db";
 import { errorMessage } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -74,13 +75,21 @@ function dedupe(addrs: Address[]): Address[] {
 export function Compose() {
   const send = useSendMail();
   const qc = useQueryClient();
+  const { address } = useAccount();
+  const cfg = getEffectiveConfig();
+  const account = address?.toLowerCase();
   const { draft, clearDraft } = useCompose();
 
   const [to, setTo] = useState(draft?.to ?? "");
   const [cc, setCc] = useState(draft?.cc ?? "");
   const [subject, setSubject] = useState(draft?.subject ?? "");
   const [body, setBody] = useState(draft?.body ?? "");
-  const [inReplyTo] = useState<string | undefined>(draft?.inReplyTo);
+  const [inReplyTo, setInReplyTo] = useState<string | undefined>(
+    draft?.inReplyTo,
+  );
+
+  const hadContextDraft = useRef(draft != null);
+  const seeded = useRef(false);
 
   const [preview, setPreview] = useState<{
     encrypted: boolean;
@@ -101,6 +110,39 @@ export function Compose() {
   useEffect(() => {
     clearDraft();
   }, [clearDraft]);
+
+  // Restore a persisted draft, but only when there's no one-shot reply prefill.
+  useEffect(() => {
+    if (seeded.current || hadContextDraft.current || !account) return;
+    seeded.current = true;
+    void getDraft(cfg.chainId, account).then((d) => {
+      if (!d) return;
+      setTo(d.to);
+      setCc(d.cc);
+      setSubject(d.subject);
+      setBody(d.body);
+      setInReplyTo(d.inReplyTo);
+    });
+  }, [account, cfg.chainId]);
+
+  // Auto-save the draft (debounced) so it survives a page reload.
+  useEffect(() => {
+    if (!account) return;
+    const handle = setTimeout(() => {
+      if (!to && !cc && !subject && !body) {
+        void clearDbDraft(cfg.chainId, account).catch(() => {});
+      } else {
+        void saveDbDraft(cfg.chainId, account, {
+          to,
+          cc,
+          subject,
+          body,
+          inReplyTo,
+        }).catch(() => {});
+      }
+    }, 500);
+    return () => clearTimeout(handle);
+  }, [account, cfg.chainId, to, cc, subject, body, inReplyTo]);
 
   async function refreshPreview(): Promise<boolean | null> {
     setHint("");
@@ -186,6 +228,7 @@ export function Compose() {
       setSubject("");
       setBody("");
       setPreview(null);
+      if (account) void clearDbDraft(cfg.chainId, account).catch(() => {});
       toast.success(
         `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
       );

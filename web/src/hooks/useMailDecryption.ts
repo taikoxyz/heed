@@ -9,6 +9,7 @@ import {
 } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
 import { evictKey, getCachedKey, putKey } from "../lib/keys";
+import { getDecoded, putDecoded } from "../lib/db";
 
 interface EncryptedShape {
   v: 1;
@@ -26,6 +27,11 @@ export function useMailDecryption() {
   ): Promise<DecodedPayload> {
     if (!address) throw new Error("no wallet connected");
 
+    if (!options.force) {
+      const cached = await getDecoded(contentRefHex).catch(() => undefined);
+      if (cached) return cached;
+    }
+
     const cfg = getEffectiveConfig();
     const digest = hexToBytes(contentRefHex);
     const cid = digestToCid(digest);
@@ -33,7 +39,9 @@ export function useMailDecryption() {
 
     const outer = tryParseJson(bytes);
     if (!isEncryptedShape(outer)) {
-      return decodePayload(bytes);
+      const plain = decodePayload(bytes);
+      await putDecoded(contentRefHex, plain).catch(() => {});
+      return plain;
     }
 
     const me = address.toLowerCase();
@@ -53,8 +61,14 @@ export function useMailDecryption() {
       sk = putKey(address, lockbox.keyNonce, sig);
     }
 
-    const inner = decodeEncryptedBytes(bytes, { rcpt: address, keyNonce: lockbox.keyNonce, sk });
-    return decodePayload(inner);
+    const inner = decodeEncryptedBytes(bytes, {
+      rcpt: address,
+      keyNonce: lockbox.keyNonce,
+      sk,
+    });
+    const decoded = decodePayload(inner);
+    await putDecoded(contentRefHex, decoded).catch(() => {});
+    return decoded;
   };
 }
 

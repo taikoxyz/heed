@@ -1,12 +1,19 @@
 import { useState } from "react";
 import { RefreshCwIcon } from "lucide-react";
+import { useAccount } from "wagmi";
 import type { MailEvent } from "@heed/core";
-import type { UseQueryResult } from "@tanstack/react-query";
+import {
+  useQuery,
+  useQueryClient,
+  type UseQueryResult,
+} from "@tanstack/react-query";
 import { MailCard } from "./MailCard";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "../lib/format";
+import { getEffectiveConfig } from "../lib/settings";
+import { getFlags, setRead } from "../lib/db";
 
 interface Props {
   query: UseQueryResult<MailEvent[]>;
@@ -25,6 +32,27 @@ export function MailList({
 }: Props) {
   const { data, isLoading, isFetching, error, refetch } = query;
   const [filter, setFilter] = useState("");
+
+  const { address } = useAccount();
+  const cfg = getEffectiveConfig();
+  const account = address?.toLowerCase();
+  const qc = useQueryClient();
+  const flagsKey = ["flags", cfg.chainId, account];
+  const { data: flags } = useQuery({
+    queryKey: flagsKey,
+    queryFn: () => getFlags(cfg.chainId, account!),
+    enabled: !!address && direction === "received",
+    staleTime: Infinity,
+  });
+
+  function markRead(txHash: string) {
+    if (!account) return;
+    qc.setQueryData(flagsKey, (prev: Record<string, boolean> | undefined) => ({
+      ...(prev ?? {}),
+      [txHash]: true,
+    }));
+    void setRead(cfg.chainId, account, txHash, true).catch(() => {});
+  }
 
   const counterpartyOf = (m: MailEvent) =>
     direction === "sent" ? m.recipient : m.sender;
@@ -73,7 +101,17 @@ export function MailList({
       ) : (
         <>
           {filtered.map((m) => (
-            <MailCard key={m.txHash} mail={m} direction={direction} />
+            <MailCard
+              key={m.txHash}
+              mail={m}
+              direction={direction}
+              read={
+                direction === "received" && flags
+                  ? (flags[m.txHash] ?? false)
+                  : undefined
+              }
+              onOpened={direction === "received" ? markRead : undefined}
+            />
           ))}
           {data && data.length >= limit && (
             <div className="flex justify-center pt-1">
