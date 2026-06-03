@@ -10,7 +10,11 @@ const MAIL_SENT = parseAbiItem(
   "event MailSent(address indexed sender, address indexed recipient, bytes32 contentRef, uint32 valueGwei)",
 );
 
-const DEFAULT_LOG_WINDOW = 50_000n;
+// Taiko's public RPC caps eth_getLogs at 30,000 blocks per request; other
+// providers (Infura: 10k, Alchemy: 2k) cap lower. 25k stays under Taiko while
+// leaving headroom, and the cursor pagination in `page()` keeps the typical
+// number of calls small for any real inbox.
+const DEFAULT_LOG_WINDOW = 25_000n;
 
 export function createRpcMailSource(opts: {
   client: PublicClient;
