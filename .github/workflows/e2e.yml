@@ -29,7 +29,9 @@ jobs:
           cache: npm
       - uses: foundry-rs/foundry-toolchain@v1
         with:
-          version: stable
+          # Pin to a concrete tag so foundryup skips the unauthenticated
+          # api.github.com/releases/latest call that periodically 403s.
+          version: v1.7.1
       - name: Install dependencies (versions pinned in contracts/foundry.lock)
         working-directory: contracts
         run: |
