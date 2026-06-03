@@ -12,8 +12,9 @@ import { parseGateways } from "../lib/config";
 import {
   exportAll,
   importAll,
-  parseImport,
-  downloadJson,
+  parseImportFile,
+  serializeExportZip,
+  downloadBlob,
   type HeedExport,
 } from "../lib/db";
 import { errorMessage } from "../lib/format";
@@ -97,7 +98,11 @@ export function Settings() {
     try {
       const data = await exportAll();
       const stamp = new Date().toISOString().slice(0, 10);
-      downloadJson(data, `heed-export-${stamp}.json`);
+      const bytes = serializeExportZip(data.stores, data.settings);
+      downloadBlob(
+        new Blob([bytes], { type: "application/zip" }),
+        `heed-export-${stamp}.zip`,
+      );
       setExportOpen(false);
       toast.success("Backup downloaded.");
     } catch (e) {
@@ -105,21 +110,16 @@ export function Settings() {
     }
   }
 
-  function onFile(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        setImportData(parseImport(String(reader.result)));
-        setImportOpen(true);
-      } catch (err) {
-        toast.error(errorMessage(err));
-      }
-    };
-    reader.onerror = () => toast.error("Could not read the file.");
-    reader.readAsText(file);
+    try {
+      setImportData(await parseImportFile(file));
+      setImportOpen(true);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
   }
 
   async function onImport(mode: "merge" | "replace") {
@@ -261,7 +261,7 @@ export function Settings() {
           <CardTitle className="text-lg">Backup &amp; restore</CardTitle>
           <CardDescription>
             Export all locally cached mail, read state, drafts and settings to a
-            JSON file, or restore from one.
+            zip file, or restore from one.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -275,7 +275,7 @@ export function Settings() {
             <input
               ref={fileRef}
               type="file"
-              accept="application/json"
+              accept=".zip,.json,application/zip,application/json"
               className="hidden"
               aria-label="Import backup file"
               onChange={onFile}
@@ -293,7 +293,7 @@ export function Settings() {
           <DialogHeader>
             <DialogTitle>Export your data?</DialogTitle>
             <DialogDescription>
-              This downloads a JSON file with your settings, cached mail, drafts
+              This downloads a zip file with your settings, cached mail, drafts
               and read state — including decrypted message content in plaintext.
               Anyone with the file can read your mail.
             </DialogDescription>

@@ -6,7 +6,7 @@ test.describe("local persistence", () => {
     await injectWallet(page, TAIKO_HEX);
   });
 
-  test("backup & restore exports a JSON file", async ({ page }) => {
+  test("backup & restore exports a zip file", async ({ page }) => {
     await connect(page);
     await page.getByRole("tab", { name: "Settings" }).click();
     await expect(page.getByText("Backup & restore")).toBeVisible();
@@ -20,7 +20,7 @@ test.describe("local persistence", () => {
     const downloadPromise = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download backup" }).click();
     const download = await downloadPromise;
-    expect(download.suggestedFilename()).toMatch(/^heed-export-.*\.json$/);
+    expect(download.suggestedFilename()).toMatch(/^heed-export-.*\.zip$/);
   });
 
   test("compose draft persists in IndexedDB across remounts", async ({
