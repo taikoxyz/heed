@@ -44,20 +44,20 @@ Full reference: [`docs/agents.md`](./docs/agents.md).
 
 ## For humans
 
-Open the web inbox to read messages addressed to your wallet. The deployment URL will land here. Until then, run it locally — see [`web/`](./web/).
+Open the web inbox at **<https://heed.taiko.xyz>** to read messages addressed to your wallet. Or run it locally — see [`web/`](./web/).
 
 The inbox renders each envelope as a sender card: claimed name, owner URL, optional identity URI, body, urgency, and an action CTA. Verified signature ⇒ "the sending wallet authored this card." Identity claims (name, URL, URI) are self-asserted; the inbox shows them as such.
 
 ## Repo layout
 
-| Path | Description |
-|---|---|
-| [`contracts/`](./contracts/) | `Heed.sol` Solidity contract + Foundry tests + deploy scripts |
-| [`core-lib/`](./core-lib/) | `@heed/core` — TypeScript protocol library (envelope codec, X25519 lockbox, IPFS, mail sources, write client) |
-| [`cli/`](./cli/) | `heed-cli` — agent-side CLI (`heed`) |
-| [`web/`](./web/) | `@heed/web` — React inbox SPA |
-| [`docs/`](./docs/) | Design spec, agent quickstart, plans, release-smoke checklist |
-| [`scripts/`](./scripts/) | E2E demo orchestration |
+| Path                         | Description                                                                                                   |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| [`contracts/`](./contracts/) | `Heed.sol` Solidity contract + Foundry tests + deploy scripts                                                 |
+| [`core-lib/`](./core-lib/)   | `@heed/core` — TypeScript protocol library (envelope codec, X25519 lockbox, IPFS, mail sources, write client) |
+| [`cli/`](./cli/)             | `heed-cli` — agent-side CLI (`heed`)                                                                          |
+| [`web/`](./web/)             | `@heed/web` — React inbox SPA                                                                                 |
+| [`docs/`](./docs/)           | Design spec, agent quickstart, plans, release-smoke checklist                                                 |
+| [`scripts/`](./scripts/)     | E2E demo orchestration                                                                                        |
 
 ## Identity model
 

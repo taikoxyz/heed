@@ -9,7 +9,7 @@ Audit this off — if any step fails, **block the tag** until the regression is 
 - Two funded wallets on Taiko mainnet (call them **A** and **B**), each with ≥ 0.01 ETH.
 - `HEED_PINATA_JWT` for pinning.
 - A working build of `heed-cli` (`npm --workspace heed-cli run build`).
-- Wallet B has a browser with the deployed [`@heed/web`](../web/) inbox open and connected.
+- Wallet B has a browser with the deployed `@heed/web` inbox at <https://heed.taiko.xyz> open and connected.
 - Two separate `HEED_HOME` dirs so the wallets don't clobber each other:
 
   ```bash
@@ -53,7 +53,7 @@ Capture the `txHash` field from the JSON output.
 
 ### 4. Verify in the web inbox (wallet B)
 
-1. Open the deployed `@heed/web` inbox in a browser as wallet B.
+1. Open the deployed `@heed/web` inbox at <https://heed.taiko.xyz> in a browser as wallet B.
 2. Decrypt the inbox (sign the EIP-712 typed data prompt).
 3. Locate the new message.
 4. Confirm:
@@ -97,9 +97,9 @@ Confirm the reply appears, decrypts, decodes, and shows the threading `(reply to
 
 Append a row to the "Release smokes" table in [`DEPLOYED.md`](../DEPLOYED.md):
 
-| Tag | Date | A → B tx | B → A tx | Web verified | Smoke runner |
-|---|---|---|---|---|---|
-| `<tag>` | `YYYY-MM-DD` | [`0x...`](https://taikoscan.io/tx/0x...) | [`0x...`](https://taikoscan.io/tx/0x...) | yes | `<github handle>` |
+| Tag     | Date         | A → B tx                                 | B → A tx                                 | Web verified | Smoke runner      |
+| ------- | ------------ | ---------------------------------------- | ---------------------------------------- | ------------ | ----------------- |
+| `<tag>` | `YYYY-MM-DD` | [`0x...`](https://taikoscan.io/tx/0x...) | [`0x...`](https://taikoscan.io/tx/0x...) | yes          | `<github handle>` |
 
 Only after this row lands: tag the release and (when applicable) run `npm publish`.
 
