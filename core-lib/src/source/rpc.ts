@@ -21,6 +21,8 @@ export function createRpcMailSource(opts: {
   contract: Address;
   deployedAtBlock: bigint;
   logWindow?: bigint;
+  // Block-scan progress fraction in [0,1] as page() walks backward windows.
+  onProgress?: (fraction: number) => void;
 }): MailSource {
   const reader = createReadClient(opts.client, opts.contract);
   const windowSize = opts.logWindow ?? DEFAULT_LOG_WINDOW;
@@ -45,6 +47,9 @@ export function createRpcMailSource(opts: {
     let hi =
       before !== undefined ? before - 1n : await opts.client.getBlockNumber();
     if (hi < floor) return { items: [] };
+    const start = hi;
+    const total = start - floor + 1n;
+    opts.onProgress?.(0);
 
     // Walk backward in bounded windows so each page only scans from its cursor
     // toward the floor (never re-reading the whole history) and stays under
@@ -60,6 +65,7 @@ export function createRpcMailSource(opts: {
         toBlock: hi,
       });
       if (logs.length > 0) collected = (logs as any[]).concat(collected);
+      opts.onProgress?.(Number(start - lo + 1n) / Number(total));
       if (lo === floor) break;
       hi = lo - 1n;
     }

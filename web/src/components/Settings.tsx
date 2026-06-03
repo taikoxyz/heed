@@ -10,6 +10,7 @@ import {
 } from "../lib/settings";
 import { parseGateways } from "../lib/config";
 import {
+  clearAll,
   exportAll,
   importAll,
   parseImportFile,
@@ -60,6 +61,7 @@ export function Settings() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [exportOpen, setExportOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
   const [importData, setImportData] = useState<HeedExport | null>(null);
 
   const gwError = gatewayError(draft.ipfsGateway);
@@ -131,6 +133,17 @@ export function Settings() {
       setImportOpen(false);
       setImportData(null);
       toast.success("Backup restored.");
+    } catch (e) {
+      toast.error(errorMessage(e));
+    }
+  }
+
+  async function onResetStore() {
+    try {
+      await clearAll();
+      await qc.invalidateQueries();
+      setResetOpen(false);
+      toast.success("Local store cleared.");
     } catch (e) {
       toast.error(errorMessage(e));
     }
@@ -265,12 +278,15 @@ export function Settings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" onClick={() => setExportOpen(true)}>
               Export data
             </Button>
             <Button variant="outline" onClick={() => fileRef.current?.click()}>
               Import data
+            </Button>
+            <Button variant="ghost" onClick={() => setResetOpen(true)}>
+              Reset local store
             </Button>
             <input
               ref={fileRef}
@@ -324,6 +340,27 @@ export function Settings() {
               Replace
             </Button>
             <Button onClick={() => onImport("merge")}>Merge</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset local store?</DialogTitle>
+            <DialogDescription>
+              This deletes cached mail, decoded content, drafts and read state
+              on this device. Settings are kept, and on-chain mail will be
+              re-fetched from RPC/IPFS on next load.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResetOpen(false)}>
+              Cancel
+            </Button>
+            <Button variant="destructive" onClick={onResetStore}>
+              Reset
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

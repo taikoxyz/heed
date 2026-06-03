@@ -15,6 +15,7 @@ export function SentList() {
       hasMore={!!query.hasNextPage}
       onLoadMore={() => query.fetchNextPage()}
       isLoadingMore={query.isFetchingNextPage}
+      loadProgress={query.progress}
       emptyText="No sent mail yet."
     />
   );

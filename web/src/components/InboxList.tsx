@@ -15,6 +15,7 @@ export function InboxList() {
       hasMore={!!query.hasNextPage}
       onLoadMore={() => query.fetchNextPage()}
       isLoadingMore={query.isFetchingNextPage}
+      loadProgress={query.progress}
       emptyText="No mail yet."
     />
   );
