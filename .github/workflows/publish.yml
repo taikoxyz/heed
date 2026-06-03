@@ -40,7 +40,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Require smoke confirmation
-        if: ${{ inputs.smoke_recorded != true }}
+        # workflow_dispatch boolean inputs arrive as the strings "true"/"false"
+        # at runtime, so compare as strings to avoid silent gate bypasses.
+        if: ${{ inputs.smoke_recorded != 'true' }}
         run: |
           echo "::error::Release smoke must be recorded in DEPLOYED.md per docs/release-smoke.md before publishing."
           exit 1
@@ -57,6 +59,7 @@ jobs:
           cache: npm
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
+      - run: npm run typecheck --workspace @heed/core
       - run: npm run test:core
       - run: npm run build:core
       - name: Copy LICENSE into package
@@ -80,6 +83,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
       - run: npm ci
       - run: npm run build:core
+      - run: npm run typecheck --workspace heed-cli
       - run: npm run test:cli
       - run: npm run build:cli
       - name: Replace workspace dep with the published @heed/core version
