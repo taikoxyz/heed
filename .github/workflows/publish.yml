@@ -97,6 +97,20 @@ jobs:
             fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
           " "$CORE_VERSION"
           echo "Pinned @heed/core to ^$CORE_VERSION"
+      - name: Verify @heed/core is published on npm
+        working-directory: cli
+        run: |
+          CORE_VERSION=$(node -p "require('../core-lib/package.json').version")
+          for attempt in 1 2 3; do
+            if npm view "@heed/core@^$CORE_VERSION" version >/dev/null 2>&1; then
+              echo "@heed/core@^$CORE_VERSION resolved on npm"
+              exit 0
+            fi
+            echo "attempt $attempt/3: @heed/core@^$CORE_VERSION not yet on npm, sleeping 10s..."
+            sleep 10
+          done
+          echo "::error::@heed/core@^$CORE_VERSION not found on npm. Publish core first (dispatch with package=both or package=core)."
+          exit 1
       - name: Copy LICENSE into package
         run: cp LICENSE cli/LICENSE
       - name: Publish heed-cli

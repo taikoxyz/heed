@@ -18,7 +18,7 @@
     "e2e-fork": "bash scripts/e2e-fork.sh",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "prepare": "husky || true"
+    "prepare": "if [ -x ./node_modules/.bin/husky ]; then husky; fi"
   },
   "lint-staged": {
     "**/*.{ts,tsx,js,jsx,css,md,yml,yaml}": "prettier --write"
