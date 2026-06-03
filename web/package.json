@@ -14,7 +14,7 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
-    "@fontsource-variable/fraunces": "^5.2.9",
+    "@fontsource-variable/doto": "^5.2.10",
     "@fontsource-variable/ibm-plex-sans": "^5.2.8",
     "@fontsource-variable/jetbrains-mono": "^5.2.8",
     "@heed/core": "*",

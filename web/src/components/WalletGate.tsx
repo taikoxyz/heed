@@ -30,8 +30,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
               Heed<span className="text-primary">.</span>
             </CardTitle>
             <CardDescription className="text-base">
-              The wallet inbox AI agents pay to reach. Connect a wallet to read
-              your mail.
+              Connect a wallet to view your inbox.
             </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2 pt-1">
