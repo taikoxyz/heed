@@ -1,5 +1,6 @@
 import type { Address, Hash, Hex } from "viem";
 import type { DecodedPayload, MailEvent } from "@heed/core";
+import { unzipSync, zipSync, strFromU8, strToU8 } from "fflate";
 import type { ComposeDraft } from "./composeDraft";
 import {
   EMPTY_SETTINGS,
@@ -367,6 +368,119 @@ export function parseImport(json: string): HeedExport {
   };
 }
 
+// Zip layout (exportFormat: "zip-v1"):
+//   manifest.json   — app/schemaVersion/exportFormat/exportedAt header
+//   settings.json
+//   messages.json   — MessageRecord[]
+//   flags.json      — FlagRecord[]
+//   drafts.json     — DraftRecord[]
+//   decoded/<contentRef>.json — one DecodedRecord per file (the only store that
+//     scales with content size; splitting keeps any single JSON.parse bounded).
+export const EXPORT_FORMAT = "zip-v1";
+
+interface ZipManifest {
+  app: "heed";
+  schemaVersion: number;
+  exportFormat: typeof EXPORT_FORMAT;
+  exportedAt: string;
+}
+
+function jsonBytes(value: unknown): Uint8Array {
+  return strToU8(JSON.stringify(value, null, 2));
+}
+
+export function serializeExportZip(
+  stores: HeedExport["stores"],
+  settings: Settings,
+): Uint8Array {
+  const manifest: ZipManifest = {
+    app: "heed",
+    schemaVersion: DB_VERSION,
+    exportFormat: EXPORT_FORMAT,
+    exportedAt: new Date().toISOString(),
+  };
+  const files: Record<string, Uint8Array> = {
+    "manifest.json": jsonBytes(manifest),
+    "settings.json": jsonBytes(settings),
+    "messages.json": jsonBytes(stores.messages),
+    "flags.json": jsonBytes(stores.flags),
+    "drafts.json": jsonBytes(stores.drafts),
+  };
+  for (const rec of stores.decoded) {
+    files[`decoded/${rec.contentRef}.json`] = jsonBytes(rec);
+  }
+  return zipSync(files, { level: 6 });
+}
+
+export function parseImportZip(bytes: Uint8Array): HeedExport {
+  const entries = unzipSync(bytes);
+  const manifestBytes = entries["manifest.json"];
+  if (!manifestBytes) {
+    throw new Error("Not a Heed backup: manifest.json missing.");
+  }
+  const manifest = JSON.parse(strFromU8(manifestBytes)) as Partial<ZipManifest>;
+  if (manifest.app !== "heed") {
+    throw new Error("Not a Heed backup file.");
+  }
+  if (
+    typeof manifest.schemaVersion !== "number" ||
+    manifest.schemaVersion > DB_VERSION
+  ) {
+    throw new Error(
+      `Unsupported backup version ${String(manifest.schemaVersion)} (this app supports up to ${DB_VERSION}).`,
+    );
+  }
+  const readJson = <T>(name: string, fallback: T): T => {
+    const buf = entries[name];
+    return buf ? (JSON.parse(strFromU8(buf)) as T) : fallback;
+  };
+  const decoded: DecodedRecord[] = [];
+  for (const [name, buf] of Object.entries(entries)) {
+    if (name.startsWith("decoded/") && name.endsWith(".json")) {
+      decoded.push(JSON.parse(strFromU8(buf)) as DecodedRecord);
+    }
+  }
+  return {
+    app: "heed",
+    schemaVersion: manifest.schemaVersion,
+    enc: false,
+    exportedAt: manifest.exportedAt ?? "",
+    settings: readJson<Settings>("settings.json", EMPTY_SETTINGS),
+    stores: {
+      messages: readJson<MessageRecord[]>("messages.json", []),
+      decoded,
+      flags: readJson<FlagRecord[]>("flags.json", []),
+      drafts: readJson<DraftRecord[]>("drafts.json", []),
+    },
+  };
+}
+
+function readFileBytes(file: File): Promise<Uint8Array> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(new Uint8Array(reader.result as ArrayBuffer));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+// Dispatch by magic bytes: zip files start with PK\x03\x04, JSON with '{'
+// (after optional whitespace). Falls back to the legacy text/JSON path so
+// pre-zip backups stay importable.
+export async function parseImportFile(file: File): Promise<HeedExport> {
+  const buf = await readFileBytes(file);
+  if (
+    buf.length >= 4 &&
+    buf[0] === 0x50 &&
+    buf[1] === 0x4b &&
+    buf[2] === 0x03 &&
+    buf[3] === 0x04
+  ) {
+    return parseImportZip(buf);
+  }
+  return parseImport(strFromU8(buf));
+}
+
 export async function exportAll(): Promise<HeedExport> {
   const [messages, decoded, flags, drafts] = await Promise.all([
     getAll<MessageRecord>(MESSAGES),
@@ -402,10 +516,7 @@ export async function importAll(
   saveSettings(data.settings);
 }
 
-export function downloadJson(data: unknown, filename: string): void {
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
-    type: "application/json",
-  });
+export function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -414,4 +525,11 @@ export function downloadJson(data: unknown, filename: string): void {
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+}
+
+export function downloadJson(data: unknown, filename: string): void {
+  downloadBlob(
+    new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+    filename,
+  );
 }
