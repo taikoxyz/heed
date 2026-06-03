@@ -51,7 +51,7 @@ export function Account() {
     <div className="max-w-xl space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Encryption key</CardTitle>
+          <CardTitle>Encryption key</CardTitle>
           <CardDescription>
             Publish an X25519 public key so others can send you encrypted mail.
             It is derived from a wallet signature; the private key never leaves
@@ -94,7 +94,7 @@ export function Account() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Anti-spam fee</CardTitle>
+          <CardTitle>Anti-spam fee</CardTitle>
           <CardDescription>
             Senders must pay this fee (in gwei) to mail you, unless you trust
             them.
@@ -141,7 +141,7 @@ export function Account() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Trusted senders</CardTitle>
+          <CardTitle>Trusted senders</CardTitle>
           <CardDescription>
             Trusted addresses can mail you for free, bypassing your fee.
           </CardDescription>

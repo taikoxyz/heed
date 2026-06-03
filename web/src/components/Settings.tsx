@@ -153,7 +153,7 @@ export function Settings() {
     <div className="max-w-xl space-y-4">
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Settings</CardTitle>
+          <CardTitle>Settings</CardTitle>
           <CardDescription>
             Empty fields fall back to the build-time defaults. Saved to
             localStorage on this device only.
@@ -271,7 +271,7 @@ export function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="text-lg">Backup &amp; restore</CardTitle>
+          <CardTitle>Backup &amp; restore</CardTitle>
           <CardDescription>
             Export all locally cached mail, read state, drafts and settings to a
             zip file, or restore from one.

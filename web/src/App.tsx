@@ -41,11 +41,11 @@ export default function App() {
   return (
     <ComposeContext.Provider value={composeApi}>
       <WalletGate>
-        <main className="mx-auto w-full max-w-3xl px-4">
+        <main className="mx-auto w-full max-w-4xl px-6">
           <Tabs
             value={view}
             onValueChange={(v) => setView(v as View)}
-            className="py-3"
+            className="py-6"
           >
             <TabsList variant="line">
               {TABS.map((t) => (
@@ -58,7 +58,7 @@ export default function App() {
 
           <NetworkGuard />
 
-          <div className="pb-10">
+          <div className="pb-16">
             {view === "inbox" && <InboxList />}
             {view === "sent" && <SentList />}
             {view === "compose" && <Compose />}

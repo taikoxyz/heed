@@ -23,19 +23,22 @@ export function WalletGate({ children }: { children: ReactNode }) {
 
   if (!isConnected) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-4">
-        <Card className="w-full max-w-sm">
-          <CardHeader>
-            <CardTitle className="text-2xl">Heed</CardTitle>
-            <CardDescription>
+      <div className="flex min-h-screen items-center justify-center p-6">
+        <Card className="w-full max-w-md">
+          <CardHeader className="gap-3">
+            <CardTitle className="font-heading text-5xl font-semibold tracking-tighter leading-none">
+              Heed<span className="text-primary">.</span>
+            </CardTitle>
+            <CardDescription className="text-base">
               Connect a wallet to view your inbox.
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-wrap gap-2">
+          <CardContent className="flex flex-wrap gap-2 pt-1">
             {connectors.map((c) => (
               <Button
                 key={c.uid}
                 variant="outline"
+                size="lg"
                 onClick={() => connect({ connector: c })}
               >
                 {c.name}
@@ -49,11 +52,16 @@ export function WalletGate({ children }: { children: ReactNode }) {
 
   return (
     <div>
-      <header className="flex items-center justify-between border-b px-4 py-2">
-        <span className="font-mono text-sm text-muted-foreground">
-          {address}
-        </span>
-        <div className="flex items-center gap-1">
+      <header className="flex items-center justify-between gap-3 border-b px-6 py-4">
+        <div className="flex items-baseline gap-3 min-w-0">
+          <span className="font-heading text-2xl font-semibold tracking-tighter leading-none">
+            Heed<span className="text-primary">.</span>
+          </span>
+          <span className="font-mono text-sm text-muted-foreground truncate">
+            {address}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
           <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={onDisconnect}>
             Disconnect
