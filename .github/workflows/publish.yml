@@ -33,7 +33,6 @@ on:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
   smoke-gate:
@@ -51,6 +50,9 @@ jobs:
     needs: smoke-gate
     if: ${{ inputs.package == 'core' || inputs.package == 'both' }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -72,8 +74,14 @@ jobs:
 
   publish-cli:
     needs: [smoke-gate, publish-core]
+    # always() is needed so this job evaluates even when publish-core is
+    # skipped (the package=cli path). Smoke must succeed, and publish-core
+    # must either succeed (package=both) or have been skipped (package=cli).
     if: ${{ always() && needs.smoke-gate.result == 'success' && (inputs.package == 'cli' || inputs.package == 'both') && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # npm provenance
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
