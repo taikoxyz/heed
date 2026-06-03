@@ -97,11 +97,11 @@ Confirm the reply appears, decrypts, decodes, and shows the threading `(reply to
 
 Append a row to the "Release smokes" table in [`DEPLOYED.md`](../DEPLOYED.md):
 
-| Tag | Date | A → B tx | B → A tx | Web verified | Smoke runner |
-|---|---|---|---|---|---|
-| `<tag>` | `YYYY-MM-DD` | [`0x...`](https://taikoscan.io/tx/0x...) | [`0x...`](https://taikoscan.io/tx/0x...) | yes | `<github handle>` |
+| Tag     | Date         | A → B tx                                 | B → A tx                                 | Web verified | Smoke runner      |
+| ------- | ------------ | ---------------------------------------- | ---------------------------------------- | ------------ | ----------------- |
+| `<tag>` | `YYYY-MM-DD` | [`0x...`](https://taikoscan.io/tx/0x...) | [`0x...`](https://taikoscan.io/tx/0x...) | yes          | `<github handle>` |
 
-Only after this row lands: tag the release and (when applicable) run `npm publish`.
+Only after this row lands: tag the release and (when applicable) dispatch the `publish` workflow (`.github/workflows/publish.yml`) with `smoke_recorded=true`.
 
 ## Failure handling
 

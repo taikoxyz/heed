@@ -2,6 +2,24 @@
   "name": "heed-cli",
   "version": "0.1.0",
   "description": "Heed CLI for AI agents: send mail, read inbox, manage identity",
+  "keywords": [
+    "heed",
+    "taiko",
+    "cli",
+    "agent",
+    "messaging",
+    "ai"
+  ],
+  "homepage": "https://github.com/taikoxyz/heed#readme",
+  "bugs": {
+    "url": "https://github.com/taikoxyz/heed/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taikoxyz/heed.git",
+    "directory": "cli"
+  },
   "type": "module",
   "bin": {
     "heed": "dist/index.js"
@@ -10,12 +28,17 @@
   "files": [
     "dist"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "license": "MIT",
   "dependencies": {
     "@heed/core": "*",
     "commander": "13.1.0",

@@ -1,0 +1,102 @@
+# Manual npm publish for @heed/core and heed-cli.
+#
+# Gated on the release-smoke checklist in docs/release-smoke.md — the operator
+# must record the smoke in DEPLOYED.md before dispatching this workflow with
+# smoke_recorded=true.
+#
+# Requires repository secret NPM_TOKEN with publish rights on the @heed scope
+# and the heed-cli package. id-token: write is required for npm provenance.
+
+name: publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: "Package(s) to publish"
+        type: choice
+        options:
+          - both
+          - core
+          - cli
+        default: both
+      smoke_recorded:
+        description: "Release smoke recorded in DEPLOYED.md (per docs/release-smoke.md)"
+        type: boolean
+        required: true
+        default: false
+      tag:
+        description: "npm dist-tag"
+        type: string
+        required: true
+        default: latest
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  smoke-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require smoke confirmation
+        if: ${{ inputs.smoke_recorded != true }}
+        run: |
+          echo "::error::Release smoke must be recorded in DEPLOYED.md per docs/release-smoke.md before publishing."
+          exit 1
+
+  publish-core:
+    needs: smoke-gate
+    if: ${{ inputs.package == 'core' || inputs.package == 'both' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      - run: npm run test:core
+      - run: npm run build:core
+      - name: Copy LICENSE into package
+        run: cp LICENSE core-lib/LICENSE
+      - name: Publish @heed/core
+        working-directory: core-lib
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --tag ${{ inputs.tag }}
+
+  publish-cli:
+    needs: [smoke-gate, publish-core]
+    if: ${{ always() && needs.smoke-gate.result == 'success' && (inputs.package == 'cli' || inputs.package == 'both') && (needs.publish-core.result == 'success' || needs.publish-core.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+      - run: npm ci
+      - run: npm run build:core
+      - run: npm run test:cli
+      - run: npm run build:cli
+      - name: Replace workspace dep with the published @heed/core version
+        working-directory: cli
+        run: |
+          CORE_VERSION=$(node -p "require('../core-lib/package.json').version")
+          node -e "
+            const fs = require('fs');
+            const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+            pkg.dependencies['@heed/core'] = '^' + process.argv[1];
+            fs.writeFileSync('package.json', JSON.stringify(pkg, null, 2) + '\n');
+          " "$CORE_VERSION"
+          echo "Pinned @heed/core to ^$CORE_VERSION"
+      - name: Copy LICENSE into package
+        run: cp LICENSE cli/LICENSE
+      - name: Publish heed-cli
+        working-directory: cli
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --tag ${{ inputs.tag }}
