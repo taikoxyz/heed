@@ -85,7 +85,7 @@ export function EnvelopeCard({
   return (
     <article className="space-y-2">
       <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-semibold text-sm">
+        <span className="font-semibold text-base">
           {envelope.from.name || mailSenderShort(mail)}
         </span>
         {envelope.from.owner_url && (
@@ -117,9 +117,11 @@ export function EnvelopeCard({
         </Badge>
       </header>
 
-      <h3 className="text-base font-medium leading-tight">{envelope.title}</h3>
+      <h3 className="font-heading text-2xl font-semibold tracking-tight leading-tight">
+        {envelope.title}
+      </h3>
 
-      <pre className="text-sm text-foreground whitespace-pre-wrap font-sans leading-relaxed">
+      <pre className="text-base text-foreground whitespace-pre-wrap font-sans leading-relaxed">
         {envelope.body}
       </pre>
 

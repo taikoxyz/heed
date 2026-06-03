@@ -242,9 +242,9 @@ export function Compose() {
   }
 
   return (
-    <Card className="max-w-xl">
+    <Card className="max-w-2xl">
       <CardHeader>
-        <CardTitle className="text-lg">Compose</CardTitle>
+        <CardTitle>Compose</CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="space-y-1">
