@@ -2,24 +2,48 @@
   "name": "@heed/core",
   "version": "0.1.0",
   "description": "Heed core library: types, crypto, and chain utilities",
+  "keywords": [
+    "heed",
+    "taiko",
+    "ethereum",
+    "messaging",
+    "envelope",
+    "wallet"
+  ],
+  "homepage": "https://github.com/taikoxyz/heed#readme",
+  "bugs": {
+    "url": "https://github.com/taikoxyz/heed/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taikoxyz/heed.git",
+    "directory": "core-lib"
+  },
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
-      "import": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "LICENSE"
   ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
-  "license": "MIT",
   "dependencies": {
     "@noble/ciphers": "1.3.0",
     "@noble/curves": "1.9.7",
