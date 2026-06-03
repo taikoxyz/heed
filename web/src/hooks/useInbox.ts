@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { createPublicClient, http } from "viem";
@@ -10,6 +11,7 @@ export function useInbox() {
   const { address } = useAccount();
   const cfg = getEffectiveConfig();
   const account = address?.toLowerCase();
+  const [progress, setProgress] = useState(0);
 
   const cache = useQuery({
     queryKey: ["mailCache", "received", cfg.chainId, account],
@@ -18,7 +20,7 @@ export function useInbox() {
     staleTime: Infinity,
   });
 
-  return useInfiniteQuery({
+  const query = useInfiniteQuery({
     queryKey: [
       "inbox",
       address,
@@ -36,6 +38,7 @@ export function useInbox() {
           }
         : undefined,
     queryFn: async ({ pageParam }) => {
+      setProgress(0);
       const source = cfg.indexerUrl
         ? createIndexerMailSource(cfg.indexerUrl)
         : createRpcMailSource({
@@ -45,6 +48,7 @@ export function useInbox() {
             }),
             contract: cfg.contractAddress,
             deployedAtBlock: cfg.deployedAtBlock,
+            onProgress: setProgress,
           });
       const page = await source.listInboxPage(address!, {
         before: pageParam,
@@ -57,4 +61,6 @@ export function useInbox() {
     },
     getNextPageParam: (last) => last.nextCursor,
   });
+
+  return { ...query, progress };
 }

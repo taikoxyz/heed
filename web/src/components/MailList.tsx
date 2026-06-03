@@ -7,7 +7,7 @@ import { MailCard } from "./MailCard";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Progress } from "@/components/ui/progress";
 import { errorMessage } from "../lib/format";
 import { getEffectiveConfig } from "../lib/settings";
 import { getFlags, setRead } from "../lib/db";
@@ -22,6 +22,7 @@ interface Props {
   hasMore: boolean;
   onLoadMore: () => void;
   isLoadingMore: boolean;
+  loadProgress?: number;
   emptyText: string;
 }
 
@@ -35,6 +36,7 @@ export function MailList({
   hasMore,
   onLoadMore,
   isLoadingMore,
+  loadProgress,
   emptyText,
 }: Props) {
   const [filter, setFilter] = useState("");
@@ -93,10 +95,11 @@ export function MailList({
       </div>
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[0, 1, 2].map((i) => (
-            <Skeleton key={i} className="h-20 w-full rounded-xl" />
-          ))}
+        <div className="space-y-2 py-6">
+          <Progress value={(loadProgress ?? 0) * 100} />
+          <div className="text-center text-xs text-muted-foreground">
+            Loading… {Math.round((loadProgress ?? 0) * 100)}%
+          </div>
         </div>
       ) : error ? (
         <div className="text-sm text-destructive">{errorMessage(error)}</div>
