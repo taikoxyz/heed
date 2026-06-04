@@ -228,14 +228,4 @@ body {
     background-size: 80px 80px;
     background-position: -1px -1px;
   }
-
-  /* Uppercase tracked display caption, e.g. section labels. */
-  .caption {
-    font-family: var(--font-heading);
-    font-size: 0.72rem;
-    font-weight: 500;
-    letter-spacing: 0.14em;
-    text-transform: uppercase;
-    color: var(--muted-foreground);
-  }
 }

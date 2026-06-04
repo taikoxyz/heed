@@ -24,7 +24,9 @@ export function WalletGate({ children }: { children: ReactNode }) {
             <span className="dot" />
             Encrypted mail · onchain
           </span>
-          <HeedWordmark className="mb-6 h-12 w-auto text-foreground" />
+          <h1 className="mb-6">
+            <HeedWordmark className="h-12 w-auto text-foreground" />
+          </h1>
           <p className="mb-8 text-sm text-muted-foreground leading-relaxed">
             Connect a wallet to view your inbox.
           </p>
