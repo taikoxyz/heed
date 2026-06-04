@@ -1,20 +1,11 @@
 import type { ReactNode } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { clearKeys } from "../lib/keys";
+import { useAccount, useConnect } from "wagmi";
 import { HeedWordmark } from "./HeedWordmark";
-import { NetworkSwitcher } from "./NetworkSwitcher";
-import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 
 export function WalletGate({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  function onDisconnect() {
-    clearKeys();
-    disconnect();
-  }
 
   if (!isConnected) {
     return (
@@ -56,28 +47,5 @@ export function WalletGate({ children }: { children: ReactNode }) {
     );
   }
 
-  return (
-    <div>
-      <header className="flex items-center justify-between gap-3 border-b border-border bg-background px-6 py-4">
-        <div className="flex items-center gap-4 min-w-0">
-          <HeedWordmark className="h-6 w-auto shrink-0 text-foreground" />
-          <span
-            className="hidden sm:inline-flex h-4 w-px bg-border"
-            aria-hidden
-          />
-          <span className="font-mono text-xs text-muted-foreground truncate uppercase tracking-[0.08em]">
-            {address}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <NetworkSwitcher />
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={onDisconnect}>
-            Disconnect
-          </Button>
-        </div>
-      </header>
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }

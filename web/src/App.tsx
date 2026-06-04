@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 import { WalletGate } from "./components/WalletGate";
+import { Sidebar, type View } from "./components/Sidebar";
 import { InboxList } from "./components/InboxList";
 import { SentList } from "./components/SentList";
 import { Compose } from "./components/Compose";
@@ -11,18 +12,7 @@ import {
   type ComposeApi,
   type ComposeDraft,
 } from "./lib/composeDraft";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Toaster } from "@/components/ui/sonner";
-
-type View = "inbox" | "sent" | "compose" | "account" | "settings";
-
-const TABS: { id: View; label: string }[] = [
-  { id: "inbox", label: "Inbox" },
-  { id: "sent", label: "Sent" },
-  { id: "compose", label: "Compose" },
-  { id: "account", label: "Account" },
-  { id: "settings", label: "Settings" },
-];
 
 export default function App() {
   const [view, setView] = useState<View>("inbox");
@@ -41,44 +31,33 @@ export default function App() {
   return (
     <ComposeContext.Provider value={composeApi}>
       <WalletGate>
-        <div className="relative">
-          <div
-            className="grid-bg pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40"
-            aria-hidden
-          />
-          <div
-            className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
-            style={{
-              background:
-                "radial-gradient(ellipse 70% 70% at 50% 0%, transparent 30%, var(--background) 100%)",
-            }}
-            aria-hidden
-          />
-          <main className="relative mx-auto w-full max-w-4xl px-6">
-            <Tabs
-              value={view}
-              onValueChange={(v) => setView(v as View)}
-              className="pt-8 pb-6"
-            >
-              <TabsList variant="line">
-                {TABS.map((t) => (
-                  <TabsTrigger key={t.id} value={t.id}>
-                    {t.label}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-            </Tabs>
+        <div className="flex min-h-screen flex-col md:flex-row">
+          <Sidebar view={view} onSelect={setView} />
+          <div className="relative min-w-0 flex-1">
+            <div
+              className="grid-bg pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40"
+              aria-hidden
+            />
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
+              style={{
+                background:
+                  "radial-gradient(ellipse 70% 70% at 50% 0%, transparent 30%, var(--background) 100%)",
+              }}
+              aria-hidden
+            />
+            <main className="relative mx-auto w-full max-w-4xl px-6 py-8">
+              <NetworkGuard />
 
-            <NetworkGuard />
-
-            <div className="pb-16">
-              {view === "inbox" && <InboxList />}
-              {view === "sent" && <SentList />}
-              {view === "compose" && <Compose />}
-              {view === "account" && <Account />}
-              {view === "settings" && <Settings />}
-            </div>
-          </main>
+              <div className="pb-16">
+                {view === "inbox" && <InboxList />}
+                {view === "sent" && <SentList />}
+                {view === "compose" && <Compose />}
+                {view === "account" && <Account />}
+                {view === "settings" && <Settings />}
+              </div>
+            </main>
+          </div>
         </div>
         <Toaster />
       </WalletGate>
