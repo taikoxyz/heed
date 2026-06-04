@@ -419,7 +419,7 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 - **npm publish** for `@heed/core` and `heed-cli`.
 - **Mainnet smoke** (release-only): documented in [`docs/release-smoke.md`](./release-smoke.md). Two real wallets, one real send, one real reply, recorded against each release tag.
 - **Reference indexer** (Ponder) — schema and Docker image not yet shipped; clients work without it via `RpcMailSource`.
-- **`heed-web` hosted deployment** — public URL still TBD; will land in `DEPLOYED.md` when live.
+- **`heed-web` hosted deployment** — live at [`heed.taiko.xyz`](https://heed.taiko.xyz).
 
 ### v1 follow-ups (out of this design's scope, on the v1 backlog)
 
