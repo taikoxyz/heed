@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { clearKeys } from "../lib/keys";
-import { HeedMark } from "./HeedMark";
+import { HeedWordmark } from "./HeedWordmark";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,11 +27,8 @@ export function WalletGate({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen items-center justify-center p-6">
         <Card className="w-full max-w-md">
           <CardHeader className="gap-3">
-            <CardTitle className="flex items-center gap-3 font-heading text-5xl font-semibold tracking-tighter leading-none">
-              <HeedMark className="h-10 w-10 shrink-0" />
-              <span>
-                Heed<span className="text-primary">.</span>
-              </span>
+            <CardTitle>
+              <HeedWordmark className="h-10 w-auto" />
             </CardTitle>
             <CardDescription className="text-base">
               Connect a wallet to view your inbox.
@@ -58,10 +55,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
     <div>
       <header className="flex items-center justify-between gap-3 border-b px-6 py-4">
         <div className="flex items-center gap-3 min-w-0">
-          <HeedMark className="h-6 w-6 shrink-0" />
-          <span className="font-heading text-2xl font-semibold tracking-tighter leading-none">
-            Heed<span className="text-primary">.</span>
-          </span>
+          <HeedWordmark className="h-6 w-auto shrink-0" />
           <span className="font-mono text-sm text-muted-foreground truncate">
             {address}
           </span>
