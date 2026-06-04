@@ -265,7 +265,7 @@ export function Settings() {
               Clear all settings
             </Button>
             {saved && (
-              <span className="text-xs text-[var(--signal)] font-heading uppercase tracking-[0.16em]">
+              <span className="text-xs text-signal font-heading uppercase tracking-[0.16em]">
                 Saved
               </span>
             )}

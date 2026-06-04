@@ -60,7 +60,7 @@ export function MailCard({
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {read === false && (
               <span
-                className="size-2 shrink-0 bg-[var(--signal)]"
+                className="size-2 shrink-0 bg-signal"
                 style={{
                   boxShadow:
                     "0 0 0 2px color-mix(in srgb, var(--signal) 25%, transparent)",

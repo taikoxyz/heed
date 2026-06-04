@@ -92,8 +92,10 @@ body {
   --border: #e5e5e5;
   --border-strong: #000000;
   --input: #e5e5e5;
-  --ring: #0891b2;
-  --signal: #0891b2;
+  /* Darker cyan in light mode so signal-coloured text clears WCAG AA (~4.5:1)
+     on the white background; the dark theme keeps the brighter #0891b2. */
+  --ring: #0e7490;
+  --signal: #0e7490;
   --chart-1: #000000;
   --chart-2: #4a4a4a;
   --chart-3: #888888;
@@ -107,7 +109,7 @@ body {
   --sidebar-accent: #f5f5f5;
   --sidebar-accent-foreground: #000000;
   --sidebar-border: #e5e5e5;
-  --sidebar-ring: #0891b2;
+  --sidebar-ring: #0e7490;
 }
 
 .dark {
@@ -153,7 +155,10 @@ body {
   body {
     @apply bg-background text-foreground;
     font-family: var(--font-sans);
-    line-height: 1.55;
+    line-height: 1.6;
+    /* Inter character variants + stylistic sets, matching inferenceroom.ai.
+       Inherits to every element so Space Grotesk picks up its alternates too. */
+    font-feature-settings: "cv01", "cv11", "ss01", "ss02";
   }
   html {
     @apply font-sans;
@@ -165,9 +170,11 @@ body {
   h5,
   h6 {
     font-family: var(--font-heading);
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    line-height: 1.05;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1.08;
+    /* Space Grotesk stylistic sets — the distinctive a / g / t / y forms. */
+    font-feature-settings: "ss01", "ss02";
   }
   code,
   kbd,
@@ -178,8 +185,8 @@ body {
   }
   .font-heading {
     font-family: var(--font-heading);
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+    font-feature-settings: "ss01", "ss02";
   }
 }
 

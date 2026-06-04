@@ -17,7 +17,7 @@ const badgeVariants = cva(
           "border-destructive bg-transparent text-destructive [a]:hover:bg-destructive/10",
         outline: "border-border text-foreground [a]:hover:bg-foreground/[0.06]",
         signal:
-          "border-[var(--signal)] text-[var(--signal)] bg-[color-mix(in_srgb,var(--signal)_10%,transparent)]",
+          "border-signal text-signal bg-[color-mix(in_srgb,var(--signal)_10%,transparent)]",
         ghost:
           "border-transparent hover:bg-foreground/[0.05] hover:text-foreground",
         link: "text-foreground underline-offset-4 hover:underline",

@@ -324,7 +324,7 @@ export function Compose() {
               cid: <code className="text-xs">{result.cid}</code>
             </div>
             <a
-              className="text-xs text-[var(--signal)] underline"
+              className="text-xs text-signal underline"
               href={`${cfg.explorer}/tx/${result.txHash}`}
               target="_blank"
               rel="noreferrer"
