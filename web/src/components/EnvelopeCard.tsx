@@ -92,7 +92,7 @@ export function EnvelopeCard({
         </span>
         {envelope.from.owner_url && (
           <a
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-[var(--signal)] hover:underline"
             href={envelope.from.owner_url}
             target="_blank"
             rel="noreferrer noopener"
@@ -155,7 +155,7 @@ export function EnvelopeCard({
         <span
           className={
             signerCheck === "match"
-              ? "text-emerald-600"
+              ? "text-[var(--signal)]"
               : signerCheck === "mismatch" || signerCheck === "error"
                 ? "text-destructive"
                 : ""

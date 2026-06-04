@@ -1,9 +1,9 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/doto";
-@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
+@import "@fontsource-variable/space-grotesk";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -27,8 +27,9 @@ body {
 
 @theme inline {
   --font-heading:
-    "Doto Variable", "JetBrains Mono Variable", ui-monospace, monospace;
-  --font-sans: "IBM Plex Sans Variable", ui-sans-serif, system-ui, sans-serif;
+    "Space Grotesk Variable", "Space Grotesk", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans: "Inter Variable", "Inter", ui-sans-serif, system-ui, sans-serif;
   --font-mono:
     "JetBrains Mono Variable", ui-monospace, SFMono-Regular, Menlo, monospace;
   --color-sidebar-ring: var(--sidebar-ring);
@@ -62,82 +63,87 @@ body {
   --color-card: var(--card);
   --color-foreground: var(--foreground);
   --color-background: var(--background);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+  --color-signal: var(--signal);
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
 }
 
 :root {
-  --background: oklch(0.985 0.004 90);
-  --foreground: oklch(0.18 0.01 280);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 280);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 280);
-  --primary: oklch(0.46 0.22 350);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.965 0.004 90);
-  --muted-foreground: oklch(0.48 0.012 280);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
+  --background: #ffffff;
+  --foreground: #000000;
+  --card: #ffffff;
+  --card-foreground: #000000;
+  --popover: #ffffff;
+  --popover-foreground: #000000;
+  --primary: #000000;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
+  --secondary-foreground: #000000;
+  --muted: #f5f5f5;
+  --muted-foreground: #5a5a5a;
+  --accent: #f5f5f5;
+  --accent-foreground: #000000;
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.91 0.008 280);
-  --input: oklch(0.91 0.008 280);
-  --ring: oklch(0.46 0.22 350);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.75rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --border: #e5e5e5;
+  --border-strong: #000000;
+  --input: #e5e5e5;
+  --ring: #0891b2;
+  --signal: #0891b2;
+  --chart-1: #000000;
+  --chart-2: #4a4a4a;
+  --chart-3: #888888;
+  --chart-4: #c4c4c4;
+  --chart-5: #e5e5e5;
+  --radius: 0px;
+  --sidebar: #ffffff;
+  --sidebar-foreground: #000000;
+  --sidebar-primary: #000000;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #f5f5f5;
+  --sidebar-accent-foreground: #000000;
+  --sidebar-border: #e5e5e5;
+  --sidebar-ring: #0891b2;
 }
 
 .dark {
-  --background: oklch(0.16 0.012 280);
-  --foreground: oklch(0.97 0.005 90);
-  --card: oklch(0.21 0.013 280);
-  --card-foreground: oklch(0.97 0.005 90);
-  --popover: oklch(0.21 0.013 280);
-  --popover-foreground: oklch(0.97 0.005 90);
-  --primary: oklch(0.74 0.24 350);
-  --primary-foreground: oklch(0.16 0.012 280);
-  --secondary: oklch(0.27 0.014 280);
-  --secondary-foreground: oklch(0.97 0.005 90);
-  --muted: oklch(0.24 0.012 280);
-  --muted-foreground: oklch(0.74 0.012 280);
-  --accent: oklch(0.27 0.014 280);
-  --accent-foreground: oklch(0.97 0.005 90);
+  --background: #000000;
+  --foreground: #ffffff;
+  --card: #121212;
+  --card-foreground: #ffffff;
+  --popover: #121212;
+  --popover-foreground: #ffffff;
+  --primary: #ffffff;
+  --primary-foreground: #000000;
+  --secondary: #1d1d1d;
+  --secondary-foreground: #ffffff;
+  --muted: #121212;
+  --muted-foreground: #888888;
+  --accent: #1d1d1d;
+  --accent-foreground: #ffffff;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.74 0.24 350);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --border: #1f1f1f;
+  --border-strong: #ffffff;
+  --input: #1f1f1f;
+  --ring: #0891b2;
+  --signal: #0891b2;
+  --chart-1: #ffffff;
+  --chart-2: #c4c4c4;
+  --chart-3: #888888;
+  --chart-4: #4a4a4a;
+  --chart-5: #1d1d1d;
+  --sidebar: #000000;
+  --sidebar-foreground: #ffffff;
+  --sidebar-primary: #ffffff;
+  --sidebar-primary-foreground: #000000;
+  --sidebar-accent: #1d1d1d;
+  --sidebar-accent-foreground: #ffffff;
+  --sidebar-border: #1f1f1f;
+  --sidebar-ring: #0891b2;
 }
 
 @layer base {
@@ -146,6 +152,7 @@ body {
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-sans);
     line-height: 1.55;
   }
   html {
@@ -158,9 +165,9 @@ body {
   h5,
   h6 {
     font-family: var(--font-heading);
-    font-weight: 700;
-    letter-spacing: 0.005em;
-    line-height: 1.1;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
   }
   code,
   kbd,
@@ -171,7 +178,57 @@ body {
   }
   .font-heading {
     font-family: var(--font-heading);
-    font-weight: 700;
-    letter-spacing: 0.005em;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
+@layer components {
+  /* Uppercase signal pill — small status label with a pulsing cyan dot. */
+  .eyebrow {
+    font-family: var(--font-heading);
+    font-size: 0.7rem;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--signal);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.6em;
+  }
+  .eyebrow .dot {
+    width: 0.5rem;
+    height: 0.5rem;
+    background: var(--signal);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--signal) 25%, transparent);
+    animation: heed-pulse 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+  }
+  @keyframes heed-pulse {
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
+  }
+
+  /* Faint architectural grid backdrop, used behind the main content area. */
+  .grid-bg {
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 80px 80px;
+    background-position: -1px -1px;
+  }
+
+  /* Uppercase tracked display caption, e.g. section labels. */
+  .caption {
+    font-family: var(--font-heading);
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
   }
 }

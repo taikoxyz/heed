@@ -264,7 +264,11 @@ export function Settings() {
             <Button variant="ghost" onClick={onClearAll}>
               Clear all settings
             </Button>
-            {saved && <span className="text-sm text-emerald-600">Saved.</span>}
+            {saved && (
+              <span className="text-xs text-[var(--signal)] font-heading uppercase tracking-[0.16em]">
+                Saved
+              </span>
+            )}
           </div>
         </CardContent>
       </Card>

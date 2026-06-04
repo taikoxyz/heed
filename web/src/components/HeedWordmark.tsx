@@ -109,7 +109,7 @@ export function HeedWordmark({ className }: Props) {
         width={DOT}
         height={DOT}
         rx={RADIUS}
-        className="fill-primary"
+        fill="var(--signal)"
       />
     </svg>
   );

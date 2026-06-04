@@ -41,31 +41,45 @@ export default function App() {
   return (
     <ComposeContext.Provider value={composeApi}>
       <WalletGate>
-        <main className="mx-auto w-full max-w-4xl px-6">
-          <Tabs
-            value={view}
-            onValueChange={(v) => setView(v as View)}
-            className="py-6"
-          >
-            <TabsList variant="line">
-              {TABS.map((t) => (
-                <TabsTrigger key={t.id} value={t.id}>
-                  {t.label}
-                </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        <div className="relative">
+          <div
+            className="grid-bg pointer-events-none absolute inset-x-0 top-0 h-[420px] opacity-40"
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute inset-x-0 top-0 h-[420px]"
+            style={{
+              background:
+                "radial-gradient(ellipse 70% 70% at 50% 0%, transparent 30%, var(--background) 100%)",
+            }}
+            aria-hidden
+          />
+          <main className="relative mx-auto w-full max-w-4xl px-6">
+            <Tabs
+              value={view}
+              onValueChange={(v) => setView(v as View)}
+              className="pt-8 pb-6"
+            >
+              <TabsList variant="line">
+                {TABS.map((t) => (
+                  <TabsTrigger key={t.id} value={t.id}>
+                    {t.label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
 
-          <NetworkGuard />
+            <NetworkGuard />
 
-          <div className="pb-16">
-            {view === "inbox" && <InboxList />}
-            {view === "sent" && <SentList />}
-            {view === "compose" && <Compose />}
-            {view === "account" && <Account />}
-            {view === "settings" && <Settings />}
-          </div>
-        </main>
+            <div className="pb-16">
+              {view === "inbox" && <InboxList />}
+              {view === "sent" && <SentList />}
+              {view === "compose" && <Compose />}
+              {view === "account" && <Account />}
+              {view === "settings" && <Settings />}
+            </div>
+          </main>
+        </div>
         <Toaster />
       </WalletGate>
     </ComposeContext.Provider>

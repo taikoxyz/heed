@@ -54,6 +54,6 @@ describe("Settings persistence", () => {
     fireEvent.click(screen.getByText("Save"));
 
     expect(loadSettings().rpcUrl).toBe("https://custom.rpc");
-    expect(screen.getByText("Saved.")).toBeTruthy();
+    expect(screen.getByText("Saved")).toBeTruthy();
   });
 });
