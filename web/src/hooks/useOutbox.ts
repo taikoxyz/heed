@@ -1,16 +1,21 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { createPublicClient, http } from "viem";
 import { createRpcMailSource, createIndexerMailSource } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
 import { getMessages, putMessages } from "../lib/db";
+import { setProgress, useProgress } from "../lib/progressStore";
 
 export function useOutbox() {
   const { address, chainId } = useAccount();
   const cfg = getEffectiveConfig(chainId);
   const account = address?.toLowerCase();
-  const [progress, setProgress] = useState(0);
+  // Progress lives in a module-level store keyed by the query so a queryFn
+  // started before a tab switch keeps updating whichever observer is mounted
+  // when it fires its next progress callback.
+  const progressKey = `outbox:${cfg.chainId}:${account ?? ""}:${cfg.rpcUrl}:${cfg.indexerUrl ?? ""}`;
+  const progress = useProgress(progressKey);
   // Ignore progress callbacks from prior queryFn invocations (e.g. after the
   // address changes mid-scan) so they don't overwrite the new scan's value.
   const fetchId = useRef(0);
@@ -42,7 +47,7 @@ export function useOutbox() {
     queryFn: async ({ pageParam }) => {
       const id = ++fetchId.current;
       const report = (f: number) => {
-        if (id === fetchId.current) setProgress(f);
+        if (id === fetchId.current) setProgress(progressKey, f);
       };
       report(0);
       const source = cfg.indexerUrl

@@ -98,7 +98,7 @@ export function MailList({
         <div className="space-y-2 py-6">
           <Progress value={(loadProgress ?? 0) * 100} />
           <div className="text-center text-xs text-muted-foreground">
-            Loading… {Math.round((loadProgress ?? 0) * 100)}%
+            Loading {direction} mail… {Math.round((loadProgress ?? 0) * 100)}%
           </div>
         </div>
       ) : error ? (
