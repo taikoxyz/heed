@@ -1,0 +1,37 @@
+{
+  "network": "taiko-mainnet",
+  "chainId": 167000,
+  "Heed": "0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A",
+  "implementation": "0x1b0D359E7ae6Bd8a5eC3c643C1bdBa819FbEDe24",
+  "owner": "0x0F026a3efE44E0Fe34B87375EFe69b16c05D0438",
+  "deployer": "0x327fa3369B1D1D42120d84bc407e5865ECa7c458",
+  "deployMethod": "CREATE2",
+  "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "salt": "0x016dda648449d72d80d48db9a9fefac67ff7d92a547d0a25ecc303e18f7facf3",
+  "implTx": "0x349c7d0a4a102f26d2b64de1d24fd78263081964b3b7e719a7fa6f676023ba11",
+  "deployTx": "0xa8ef1a4855e02d401d350658092d2a8f73a80e0bbedd32596be7fb48154e6549",
+  "deployedAtBlock": 7500287,
+  "deployedAtBlockHash": "0x94c0ad086283375746d2cf97c1ee2ec145d74f0326425264e90f560d337efb03",
+  "constructor": {
+    "maxFeeGwei": 10000000
+  },
+  "compiler": {
+    "version": "0.8.27",
+    "evmVersion": "shanghai",
+    "optimizer": true,
+    "optimizerRuns": 1000000,
+    "viaIR": true
+  },
+  "verification": {
+    "taikoscan": {
+      "status": "verified",
+      "via": "Etherscan V2 multichain (chainid=167000)",
+      "url": "https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A"
+    }
+  },
+  "explorers": {
+    "taikoscan": "https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A",
+    "blockscout": "https://blockscout.mainnet.taiko.xyz/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A"
+  },
+  "deprecates": "0x08f32278B2CFD962444ae9541122eD84cc745678"
+}

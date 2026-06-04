@@ -41,8 +41,8 @@ export function MailList({
 }: Props) {
   const [filter, setFilter] = useState("");
 
-  const { address } = useAccount();
-  const cfg = getEffectiveConfig();
+  const { address, chainId } = useAccount();
+  const cfg = getEffectiveConfig(chainId);
   const account = address?.toLowerCase();
   const qc = useQueryClient();
   const flagsKey = ["flags", cfg.chainId, account];

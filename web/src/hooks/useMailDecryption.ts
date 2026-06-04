@@ -18,7 +18,7 @@ interface EncryptedShape {
 }
 
 export function useMailDecryption() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { signTypedDataAsync } = useSignTypedData();
 
   return async function decrypt(
@@ -32,7 +32,7 @@ export function useMailDecryption() {
       if (cached) return cached;
     }
 
-    const cfg = getEffectiveConfig();
+    const cfg = getEffectiveConfig(chainId);
     const digest = hexToBytes(contentRefHex);
     const cid = digestToCid(digest);
     const bytes = await fetchCidWithFallback(cid, cfg.ipfsGateways);

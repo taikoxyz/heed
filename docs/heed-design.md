@@ -1,7 +1,7 @@
 # Heed — Design Spec
 
 **Date:** 2026-04-29
-**Status:** Live (unaudited) — contract deployed to Taiko mainnet at [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678) at block `6091023`.
+**Status:** Live (unaudited) — deployed via CREATE2 at the same address `0x030126A6…E41A` on Ethereum (block `25240881`, [Etherscan](https://etherscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A)) and Taiko mainnet (block `7500287`, [Taikoscan](https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A)).
 
 ---
 
@@ -9,7 +9,7 @@
 
 Email on Web2 is a centralized, opt-in, spam-saturated medium. AI agents increasingly act on behalf of humans (releases, alerts, account changes, routine asks) and have no inbox to deliver into without screen-scraping or onboarding to whatever messaging stack each human happens to use. Heed is a **trustless, address-native channel from AI agents to humans**: any EVM address is a mailbox; the recipient prices their attention via an anti-spam fee paid directly to them in ETH; payloads are encrypted with deterministic, recoverable key material derived from the wallet itself; and clients run locally to avoid trusting any hosted service with private keys.
 
-The deployed v1 ships three artifacts: an immutable `Heed.sol` on Taiko mainnet, a TypeScript protocol library (`@heed/core`), and two reference clients — `heed-cli` for agents and `@heed/web` for the human side. An IPFS-pinned envelope schema carries AI-shaped metadata (sender identity claims, urgency, optional CTA, threading).
+The deployed v1 ships three artifacts: a UUPS-upgradeable `Heed.sol` deployed at the same address on Ethereum and Taiko mainnet, a TypeScript protocol library (`@heed/core`), and two reference clients — `heed-cli` for agents and `@heed/web` for the human side. An IPFS-pinned envelope schema carries AI-shaped metadata (sender identity claims, urgency, optional CTA, threading).
 
 ---
 
@@ -27,7 +27,7 @@ Other use cases (own-agent companion, intra-org notifications, dapp/DAO alerts) 
 
 ## Goals
 
-- Address-native identity: an EVM address *is* a mailbox; no opt-in to receive.
+- Address-native identity: an EVM address _is_ a mailbox; no opt-in to receive.
 - Recipient-priced attention: anti-spam fee in ETH, paid directly to the recipient.
 - AI-shaped envelope: structured metadata agents emit (title, body, urgency, optional CTA, threading, identity claims).
 - Self-claimed agent identity, signature-bound to the sending wallet; identity registries are out-of-protocol.
@@ -41,7 +41,7 @@ Other use cases (own-agent companion, intra-org notifications, dapp/DAO alerts) 
 - Push, native, or email notifications.
 - Mobile clients.
 - On-chain spam filtering beyond fee + whitelist.
-- Contract upgradeability or governance.
+- On-chain or decentralized governance (upgrades are owner-controlled via UUPS; there is no DAO or voting).
 - Read receipts, delivery confirmations, on-chain threading state.
 - Hosted inbox or centralized indexer as a hard dependency.
 - Web2 (Gmail/Yahoo) interop — pure protocol, no SMTP bridge.
@@ -97,9 +97,9 @@ Heed itself does not register agents on any external registry. Operators bring t
 
 ```
                  +-----------------------+         +----------------+
-                 | Taiko mainnet         | <-----> | Reference      |
+                 | Ethereum + Taiko      | <-----> | Reference      |
    web reader -->| Heed.sol              |  logs   | indexer        |
-   heed-cli  --->| (immutable)           |         | (Ponder + PG,  |
+   heed-cli  --->| (UUPS proxy)          |         | (Ponder + PG,  |
                  +-----------------------+         |  optional)     |
                                 ^                  +----------------+
                                 |                      ^
@@ -113,7 +113,7 @@ Heed itself does not register agents on any external registry. Operators bring t
 
 Three artifacts ship; clients consume the same `@heed/core` library — no duplicated crypto or protocol code.
 
-1. **`Heed.sol`** — single contract, immutable, on Taiko mainnet.
+1. **`Heed.sol`** — single contract, a UUPS-upgradeable proxy, at the same address on Ethereum and Taiko mainnet.
 2. **`@heed/core`** — TypeScript library: envelope codec, crypto, contract bindings, IPFS, mail sources. The deliverable for any client.
 3. **`heed-cli`** — the agent-side CLI (binary `heed`). Thin wrapper over `@heed/core` for shell-out agents, cron, CI, and modern AI agent frameworks.
 4. **`@heed/web`** — envelope-aware read-only web inbox. Wallet connect, in-browser key derivation (no persistence), envelope rendering with pluggable URI resolvers.
@@ -124,7 +124,7 @@ A reference indexer (Ponder + Postgres) is supported but optional; clients fall 
 
 ## Smart Contract Design
 
-The contract is **immutable**; all sections in this document describe the deployed bytecode. Address: [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678). Deploy block: `6091023`.
+All sections in this document describe the deployed bytecode. Address (same on Ethereum + Taiko): [`0x030126A6…E41A`](https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A). Deploy blocks: Ethereum `25240881`, Taiko `7500287`.
 
 > **Note.** The deployed contract additionally exposes `registerDelegate`/`revokeDelegate`/`revokeMyself` and a delegate-aware `effectiveSender` resolution path. These are **not part of the v1 client surface** and are intentionally undocumented here; v1 clients always send as `msg.sender`.
 
@@ -203,7 +203,7 @@ Modes:
 - **`atomic = false`** (best-effort): a failed mail (insufficient `valueGwei`, transfer revert) is **skipped silently** and its `valueGwei` is refunded with the rest of any unspent ETH at the end of the call.
 - After the loop: the contract refunds any unspent ETH (unsent budget + skipped values + over-payment) to `msg.sender` via a single `call`.
 
-The contract emits *only* `MailSent` events from `sendBatch`; no state variable is written by the send path. The only writers are key/fee/trust management functions.
+The contract emits _only_ `MailSent` events from `sendBatch`; no state variable is written by the send path. The only writers are key/fee/trust management functions.
 
 ### Constructor
 
@@ -227,15 +227,15 @@ types   = { Key: [{ name: "keyNonce", type: "uint32" }] }
 message = { keyNonce: <n> }
 ```
 
-- `signature = wallet.signTypedData(domain, types, message)`  (65-byte secp256k1 signature)
+- `signature = wallet.signTypedData(domain, types, message)` (65-byte secp256k1 signature)
 - `seed = sha256(signature)`
-- `privateKey_x25519 = clampScalar(seed[0..32])`  (RFC 7748 §5)
+- `privateKey_x25519 = clampScalar(seed[0..32])` (RFC 7748 §5)
 - `publicKey = X25519.scalarMultBase(privateKey_x25519)` (32 bytes — fits `bytes32`)
 - Publish: `Heed.publishKey(keyNonce, publicKey)`
 
 The domain separator binds the derivation to a specific chain + contract — replay-safe across chains.
 
-Old keys are *not lost* when overwritten on-chain; the user can always re-derive any historical private key by signing the typed data with the historical `keyNonce`. The on-chain 2-slot registry is purely a sender-side convenience cache for picking the newest key.
+Old keys are _not lost_ when overwritten on-chain; the user can always re-derive any historical private key by signing the typed data with the historical `keyNonce`. The on-chain 2-slot registry is purely a sender-side convenience cache for picking the newest key.
 
 ### Lockbox encryption
 
@@ -262,9 +262,7 @@ The on-chain `contentRef` is a 32-byte sha256 multihash. Off-chain we treat it a
   "v": 1,
   "scheme": 1,
   "nonce": "base64-24",
-  "lockboxes": [
-    { "rcpt": "0xAlice", "keyNonce": 3, "wrapped": "base64..." }
-  ],
+  "lockboxes": [{ "rcpt": "0xAlice", "keyNonce": 3, "wrapped": "base64..." }],
   "ct": "base64..."
 }
 ```
@@ -322,7 +320,7 @@ The v1 shipping artifact for agents. Binary: `heed`. Thin wrapper over `@heed/co
 - `heed inbox` — `listInbox` → fetch CID → decrypt → `decodePayload` → render. Flags: `--since-block`, `--limit`, `--json`, `--watch`, `--rpc-url`, `--gateway`.
 - `heed agent {set-name|set-owner-url|set-uri|set-logo-cid|show}` — manage envelope identity claims stored locally in config.
 - `heed key show` — print the wallet address derived from the loaded private key.
-- `heed config {get|set|path}` — read/write CLI configuration (network, identity, key nonce).
+- `heed config {get|set|path|use-network}` — read/write CLI configuration (network, identity, key nonce); `use-network <taiko|ethereum>` applies a network preset.
 
 **Key storage:** file-based by default at `$XDG_CONFIG_HOME/heed/wallet.json` (or `~/.config/heed/wallet.json`), mode 0600. Override the config home with `HEED_HOME=<dir>`. `HEED_PRIVATE_KEY` env-var override for headless agents / CI / sandboxed environments — auto-selected when set, no persistence. Selectable per-command via `--keystore auto|file|env`. Native OS keychain integration is intentionally deferred to a follow-up; the file + env-var pattern matches `~/.aws/credentials` and `gh auth`.
 
@@ -383,7 +381,7 @@ Two implementations ship:
 ### Stack
 
 - **Ponder** (TypeScript) framework, Postgres backing store, GraphQL API.
-- Self-hostable as a single Docker image. A reference hosted instance is *optional*; clients always work without it.
+- Self-hostable as a single Docker image. A reference hosted instance is _optional_; clients always work without it.
 
 ### Indexed entities
 
@@ -408,7 +406,7 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 
 1. **Foundry repo** with `forge` + `viem`. Toolchain locked.
 2. **Contract** developed and tested: ≥ 95% line / 100% branch coverage on `Heed.sol`. Property/fuzz tests on batch-send accounting; tests for key rotation, fee cap.
-3. **Mainnet deploy** at block `6091023`. Address `0x08f32278…5678`. Verified on Taikoscan and Blockscout. Deployment record: [`deployments/mainnet.json`](../deployments/mainnet.json).
+3. **Mainnet deploy** via CREATE2 at the same address `0x030126A6…E41A` on Ethereum (block `25240881`) and Taiko (block `7500287`). Verified on Etherscan + Taikoscan. Records: [`deployments/ethereum.json`](../deployments/ethereum.json), [`deployments/taiko.json`](../deployments/taiko.json).
 4. **`@heed/core`** TypeScript library (envelope codec, X25519 lockbox, IPFS, mail sources, write client) — 67 tests passing. **Not yet on npm.**
 5. **`heed-cli`** package (binary `heed`) — 80 tests passing. **Not yet on npm.**
 6. **`@heed/web`** envelope-aware inbox — 18 tests passing.
@@ -431,7 +429,7 @@ The indexer is purely additive: any client can ignore it and rely on RPC. Multip
 
 ## Testing Strategy
 
-The contract is immutable; testing rigor compensates for the absence of a public testnet rehearsal.
+The contract ships unaudited; testing rigor compensates for the absence of a public testnet rehearsal. (It is an owner-upgradeable UUPS proxy, so a fix can also ship as an implementation upgrade.)
 
 - **Foundry test coverage** ≥ 95% line / 100% branch on `Heed.sol`, including:
   - Atomic vs. best-effort branch correctness with mixed success/failure.
@@ -450,15 +448,15 @@ The contract is immutable; testing rigor compensates for the absence of a public
 
 ## Risks & Mitigations
 
-| Risk | Mitigation |
-|---|---|
-| Direct mainnet without testnet exposes users to bugs we can't patch (immutable contract). | Audit pending; Foundry coverage and the anvil-fork e2e are the current line of defense. Bug fixes ship as v2 contract; clients support both. |
-| Pinata centralization for default pinning. | Client supports any IPFS pinning service; user supplies own JWT. Doc explicitly recommends self-hosted IPFS for high-value users. |
-| Self-claimed envelope identity could mislead recipients. | Inbox UI distinguishes the verified property (signing wallet) from claimed properties (name, owner_url, uri). URI resolvers can decorate with verification affordances when the operator opts into a registry. |
-| Recipient address is a contract that reverts on `receive`. | Best-effort batch skips and refunds; atomic batch reverts. Behavior documented. |
-| Sender pays unbounded `valueGwei` by mistake. | Client enforces a "max anti-spam fee to send" config; UI confirmation for fees above threshold. |
-| Fee griefing: recipient sets max fee right before someone sends. | Sender always reads fee just-in-time; the tx still succeeds if `valueGwei >= fee`. Client may warn if fee changed since compose. |
-| Dropped IPFS content (no pinning enforcement). | Doc emphasizes sender's responsibility; client has rehost/re-pin tooling planned. |
+| Risk                                                             | Mitigation                                                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Direct mainnet without testnet exposes users to bugs.            | Audit pending; Foundry coverage and the anvil-fork e2e are the current line of defense. The proxy is owner-upgradeable, so fixes can ship as an implementation upgrade (or a fresh v2 deployment); clients support both. The flip side: users must trust the owner not to push a malicious upgrade. |
+| Pinata centralization for default pinning.                       | Client supports any IPFS pinning service; user supplies own JWT. Doc explicitly recommends self-hosted IPFS for high-value users.                                                                                                                                                                   |
+| Self-claimed envelope identity could mislead recipients.         | Inbox UI distinguishes the verified property (signing wallet) from claimed properties (name, owner_url, uri). URI resolvers can decorate with verification affordances when the operator opts into a registry.                                                                                      |
+| Recipient address is a contract that reverts on `receive`.       | Best-effort batch skips and refunds; atomic batch reverts. Behavior documented.                                                                                                                                                                                                                     |
+| Sender pays unbounded `valueGwei` by mistake.                    | Client enforces a "max anti-spam fee to send" config; UI confirmation for fees above threshold.                                                                                                                                                                                                     |
+| Fee griefing: recipient sets max fee right before someone sends. | Sender always reads fee just-in-time; the tx still succeeds if `valueGwei >= fee`. Client may warn if fee changed since compose.                                                                                                                                                                    |
+| Dropped IPFS content (no pinning enforcement).                   | Doc emphasizes sender's responsibility; client has rehost/re-pin tooling planned.                                                                                                                                                                                                                   |
 
 ---
 
@@ -471,7 +469,7 @@ The contract is immutable; testing rigor compensates for the absence of a public
 - Hosted inbox or any centralized dependency.
 - Read receipts, delivery confirmations.
 - On-chain spam filtering beyond fee + whitelist.
-- Contract upgradeability or governance.
+- On-chain or decentralized governance (upgrades are owner-controlled via UUPS; there is no DAO or voting).
 - Web2 (SMTP) interop.
 - Mailing-list / multicast / group-chat primitives.
 - Forward-secrecy ratchet.

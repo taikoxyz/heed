@@ -47,11 +47,17 @@ test.describe("connected app shell", () => {
   });
 });
 
-test("shows a wrong-network guard off Taiko", async ({ page }) => {
-  await injectWallet(page, "0x1"); // Ethereum mainnet
+test("shows a guard on an unsupported network", async ({ page }) => {
+  await injectWallet(page, "0x89"); // Polygon — not a Heed network
   await connect(page);
-  await expect(page.getByText("Wrong network")).toBeVisible();
+  await expect(page.getByText("Unsupported network")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Switch to Taiko" }),
   ).toBeVisible();
+});
+
+test("accepts Ethereum mainnet without a guard", async ({ page }) => {
+  await injectWallet(page, "0x1"); // Ethereum mainnet — supported
+  await connect(page);
+  await expect(page.getByText("Unsupported network")).toHaveCount(0);
 });

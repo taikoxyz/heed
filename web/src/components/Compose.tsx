@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { createPublicClient, http, isAddress, type Address } from "viem";
-import { taiko } from "viem/chains";
 import { createReadClient } from "@heed/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
@@ -75,8 +74,8 @@ function dedupe(addrs: Address[]): Address[] {
 export function Compose() {
   const send = useSendMail();
   const qc = useQueryClient();
-  const { address } = useAccount();
-  const cfg = getEffectiveConfig();
+  const { address, chainId } = useAccount();
+  const cfg = getEffectiveConfig(chainId);
   const account = address?.toLowerCase();
   const { draft, clearDraft } = useCompose();
 
@@ -156,9 +155,9 @@ export function Compose() {
     const recipients = dedupe([...t.valid, ...c.valid]);
     if (recipients.length === 0) return null;
     try {
-      const cfg = getEffectiveConfig();
+      const cfg = getEffectiveConfig(chainId);
       const reader = createReadClient(
-        createPublicClient({ chain: taiko, transport: http(cfg.rpcUrl) }),
+        createPublicClient({ chain: cfg.chain, transport: http(cfg.rpcUrl) }),
         cfg.contractAddress,
       );
       const inboxes = await reader.getInboxes(recipients);
@@ -326,11 +325,11 @@ export function Compose() {
             </div>
             <a
               className="text-xs text-primary underline"
-              href={`https://taikoscan.io/tx/${result.txHash}`}
+              href={`${cfg.explorer}/tx/${result.txHash}`}
               target="_blank"
               rel="noreferrer"
             >
-              View on Taikoscan ↗
+              View on {cfg.label} explorer ↗
             </a>
           </div>
         )}

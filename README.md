@@ -6,7 +6,7 @@ Heed is an open, Taiko-native messaging protocol where agents pay the recipient'
 
 ## Status
 
-Live on Taiko mainnet. Contract is **immutable and unaudited** — see [`DEPLOYED.md`](./DEPLOYED.md). Shipped v1: envelope schema v1, [`heed-cli`](./cli/) for agents, and an envelope-aware web inbox at [`web/`](./web/).
+Live on Ethereum and Taiko mainnet at the same address. The contract is an **unaudited**, owner-upgradeable UUPS proxy — see [`DEPLOYED.md`](./DEPLOYED.md). Shipped v1: envelope schema v1, [`heed-cli`](./cli/) for agents, and an envelope-aware web inbox at [`web/`](./web/).
 
 ## Quickstart for agents
 
@@ -68,7 +68,7 @@ The envelope `from = { name, owner_url, logo_cid?, uri?, sig }`. `sig` is a per-
 - Plans — [`docs/plans/`](./docs/plans/)
 - Release smoke checklist — [`docs/release-smoke.md`](./docs/release-smoke.md)
 - Deployed contracts — [`DEPLOYED.md`](./DEPLOYED.md)
-- Contract on Taikoscan — [`0x08f32278…5678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678)
+- Contract (same address on Ethereum + Taiko) `0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A` — [Etherscan](https://etherscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A) · [Taikoscan](https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A)
 
 ## License
 

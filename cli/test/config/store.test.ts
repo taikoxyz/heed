@@ -3,12 +3,14 @@ import { mkdtemp, readFile, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
+  applyNetworkPreset,
   defaultConfig,
   getValue,
   isAllowedKey,
   readConfig,
   setValue,
   writeConfig,
+  HEED_ETHEREUM_CHAIN_ID,
   HEED_MAINNET_CHAIN_ID,
   HEED_MAINNET_CONTRACT,
 } from "../../src/config/store";
@@ -57,21 +59,62 @@ describe("readConfig / writeConfig", () => {
 
 describe("setValue", () => {
   it("rejects malformed contract addresses", () => {
-    expect(() => setValue(defaultConfig(), "network.contract", "0xnope")).toThrow(/contract/);
+    expect(() =>
+      setValue(defaultConfig(), "network.contract", "0xnope"),
+    ).toThrow(/contract/);
   });
 
   it("rejects non-integer chain ids", () => {
-    expect(() => setValue(defaultConfig(), "network.chain_id", "1.5")).toThrow(/chain_id/);
+    expect(() => setValue(defaultConfig(), "network.chain_id", "1.5")).toThrow(
+      /chain_id/,
+    );
   });
 
   it("accepts and stores a valid contract address", () => {
-    const next = setValue(defaultConfig(), "network.contract", "0x" + "ab".repeat(20));
+    const next = setValue(
+      defaultConfig(),
+      "network.contract",
+      "0x" + "ab".repeat(20),
+    );
     expect(next.network.contract).toBe("0x" + "ab".repeat(20));
   });
 
   it("sets identity URI as a free-form string", () => {
     const next = setValue(defaultConfig(), "identity.uri", "erc8004:taiko:42");
     expect(getValue(next, "identity.uri")).toBe("erc8004:taiko:42");
+  });
+});
+
+describe("applyNetworkPreset", () => {
+  it("switches the whole network block to Ethereum, same contract address", () => {
+    const next = applyNetworkPreset(defaultConfig(), "ethereum");
+    expect(next.network.chain_id).toBe(HEED_ETHEREUM_CHAIN_ID);
+    expect(next.network.contract).toBe(HEED_MAINNET_CONTRACT);
+    expect(next.network.rpc_url).toMatch(/^https:\/\//);
+    expect(next.network.deployed_at_block).toBeGreaterThan(0);
+  });
+
+  it("switches back to Taiko", () => {
+    const eth = applyNetworkPreset(defaultConfig(), "ethereum");
+    const taiko = applyNetworkPreset(eth, "taiko");
+    expect(taiko.network.chain_id).toBe(HEED_MAINNET_CHAIN_ID);
+  });
+
+  it("preserves identity and key_nonce across a switch", () => {
+    const base = {
+      ...defaultConfig(),
+      key_nonce: 4,
+      identity: { name: "Bot", owner_url: "x" },
+    };
+    const next = applyNetworkPreset(base, "ethereum");
+    expect(next.key_nonce).toBe(4);
+    expect(next.identity).toEqual(base.identity);
+  });
+
+  it("throws on an unknown network", () => {
+    expect(() => applyNetworkPreset(defaultConfig(), "solana")).toThrow(
+      /unknown network/,
+    );
   });
 });
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # scripts/e2e-fork.sh — anvil fork of Taiko mainnet → protocol round-trip against deployed Heed.sol.
 # Validates the full envelope round-trip against the REAL deployed contract bytecode
-# at 0x08f32278B2CFD962444ae9541122eD84cc745678.
+# at 0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A.
 set -euo pipefail
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -13,9 +13,9 @@ ANVIL_LOG="$(mktemp -t heed-anvil-fork.XXXXXX)"
 ANVIL_PID=""
 
 # Deployed Heed contract on Taiko mainnet.
-HEED_ADDRESS="0x08f32278B2CFD962444ae9541122eD84cc745678"
-HEED_DEPLOY_BLOCK=6091023
-FORK_BLOCK="${FORK_BLOCK:-6091024}"
+HEED_ADDRESS="0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A"
+HEED_DEPLOY_BLOCK=7500287
+FORK_BLOCK="${FORK_BLOCK:-7500288}"
 
 # Taiko mainnet RPC for the fork.
 TAIKO_RPC="${TAIKO_RPC:-https://rpc.mainnet.taiko.xyz}"

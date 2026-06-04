@@ -1,0 +1,35 @@
+{
+  "network": "ethereum-mainnet",
+  "chainId": 1,
+  "Heed": "0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A",
+  "implementation": "0x1b0D359E7ae6Bd8a5eC3c643C1bdBa819FbEDe24",
+  "owner": "0x0F026a3efE44E0Fe34B87375EFe69b16c05D0438",
+  "deployer": "0x327fa3369B1D1D42120d84bc407e5865ECa7c458",
+  "deployMethod": "CREATE2",
+  "create2Factory": "0x4e59b44847b379578588920cA78FbF26c0B4956C",
+  "salt": "0x016dda648449d72d80d48db9a9fefac67ff7d92a547d0a25ecc303e18f7facf3",
+  "implTx": "0xdc7cee92d10c87749e45fe74f70e243291d85ce2ff357f8437826b57b2d2c776",
+  "deployTx": "0x59890176b982ff67c7060b5af15fcb2a3ce38092b5630d5b0e1d7bc259c1016c",
+  "deployedAtBlock": 25240881,
+  "deployedAtBlockHash": "0x792e97346c1fc2ba6b732297322bae79e3af0f15d3a3ca0cf781e9625526cc2a",
+  "constructor": {
+    "maxFeeGwei": 10000000
+  },
+  "compiler": {
+    "version": "0.8.27",
+    "evmVersion": "shanghai",
+    "optimizer": true,
+    "optimizerRuns": 1000000,
+    "viaIR": true
+  },
+  "verification": {
+    "etherscan": {
+      "status": "verified",
+      "via": "Etherscan V2 multichain (chainid=1)",
+      "url": "https://etherscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A"
+    }
+  },
+  "explorers": {
+    "etherscan": "https://etherscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A"
+  }
+}

@@ -1,6 +1,5 @@
 import { useAccount, useSignTypedData, useWalletClient } from "wagmi";
 import { createPublicClient, http, bytesToHex, type Address } from "viem";
-import { taiko } from "viem/chains";
 import {
   cidToDigest,
   createReadClient,
@@ -58,7 +57,7 @@ function uniqueAddresses(addrs: Address[]): Address[] {
 }
 
 export function useSendMail() {
-  const { address: sender } = useAccount();
+  const { address: sender, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { signTypedDataAsync } = useSignTypedData();
 
@@ -66,7 +65,7 @@ export function useSendMail() {
     if (!sender) throw new Error("connect a wallet first");
     if (!walletClient) throw new Error("wallet not ready");
 
-    const cfg = getEffectiveConfig();
+    const cfg = getEffectiveConfig(chainId);
     if (!cfg.pinataJwt) {
       throw new Error("set a Pinata JWT in Settings to send mail");
     }
@@ -77,7 +76,7 @@ export function useSendMail() {
     if (recipients.length === 0) throw new Error("add at least one recipient");
 
     const publicClient = createPublicClient({
-      chain: taiko,
+      chain: cfg.chain,
       transport: http(cfg.rpcUrl),
     });
     const reader = createReadClient(publicClient, cfg.contractAddress);
