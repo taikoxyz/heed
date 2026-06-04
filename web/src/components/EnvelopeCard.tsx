@@ -67,7 +67,7 @@ export function EnvelopeCard({
     }
     let cancelled = false;
     const cfg = getEffectiveConfig(chainId);
-    void resolveIdentity(envelope.from.uri, cfg.rpcUrl).then((r) => {
+    void resolveIdentity(envelope.from.uri, cfg.rpcUrl, cfg.chain).then((r) => {
       if (!cancelled) setIdentity(r);
     });
     return () => {

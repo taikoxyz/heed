@@ -27,6 +27,11 @@ export interface HeedConfig {
     uri?: string;
   };
   key_nonce: number;
+  // Per-network key_nonce stash, keyed by chain_id. The active network's nonce
+  // lives in key_nonce; this remembers the other chains' nonces across a
+  // use-network switch so rotating on one chain can't desync another chain's
+  // already-published key (the derived key is bound to chain_id + key_nonce).
+  key_nonces: Record<string, number>;
 }
 
 export const ALLOWED_KEYS = [
@@ -55,6 +60,7 @@ export function defaultConfig(): HeedConfig {
     },
     identity: { name: "", owner_url: "" },
     key_nonce: 0,
+    key_nonces: {},
   };
 }
 
@@ -87,6 +93,7 @@ export const NETWORK_NAMES = Object.keys(NETWORK_PRESETS);
 
 // Applies a network preset, swapping the whole network block (chain, RPC,
 // contract, block) while preserving identity. RPC stays overridable afterward.
+// key_nonce is stashed/restored per chain so each network keeps its own.
 export function applyNetworkPreset(
   config: HeedConfig,
   name: string,
@@ -97,8 +104,14 @@ export function applyNetworkPreset(
       `unknown network "${name}". available: ${NETWORK_NAMES.join(", ")}`,
     );
   }
+  const key_nonces: Record<string, number> = {
+    ...config.key_nonces,
+    [config.network.chain_id]: config.key_nonce,
+  };
   return {
     ...config,
+    key_nonce: key_nonces[preset.chain_id] ?? 0,
+    key_nonces,
     network: {
       ...config.network,
       chain_id: preset.chain_id,
@@ -223,5 +236,6 @@ function mergeWithDefaults(partial: Partial<HeedConfig>): HeedConfig {
     network: { ...d.network, ...(partial.network ?? {}) },
     identity: { ...d.identity, ...(partial.identity ?? {}) },
     key_nonce: partial.key_nonce ?? d.key_nonce,
+    key_nonces: partial.key_nonces ?? d.key_nonces,
   };
 }

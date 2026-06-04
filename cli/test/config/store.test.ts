@@ -100,15 +100,28 @@ describe("applyNetworkPreset", () => {
     expect(taiko.network.chain_id).toBe(HEED_MAINNET_CHAIN_ID);
   });
 
-  it("preserves identity and key_nonce across a switch", () => {
+  it("preserves identity across a switch", () => {
     const base = {
       ...defaultConfig(),
       key_nonce: 4,
       identity: { name: "Bot", owner_url: "x" },
     };
     const next = applyNetworkPreset(base, "ethereum");
-    expect(next.key_nonce).toBe(4);
     expect(next.identity).toEqual(base.identity);
+  });
+
+  it("keeps key_nonce per network across switches", () => {
+    // Taiko (default) starts at nonce 4; Ethereum is unseen, so it begins at 0.
+    const base = { ...defaultConfig(), key_nonce: 4 };
+    const eth = applyNetworkPreset(base, "ethereum");
+    expect(eth.key_nonce).toBe(0);
+    // Rotating on Ethereum must not leak back into Taiko's published nonce.
+    const ethRotated = { ...eth, key_nonce: 2 };
+    const backToTaiko = applyNetworkPreset(ethRotated, "taiko");
+    expect(backToTaiko.key_nonce).toBe(4);
+    // Returning to Ethereum restores its own rotated nonce.
+    const backToEth = applyNetworkPreset(backToTaiko, "ethereum");
+    expect(backToEth.key_nonce).toBe(2);
   });
 
   it("throws on an unknown network", () => {
