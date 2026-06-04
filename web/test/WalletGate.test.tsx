@@ -18,6 +18,6 @@ describe("WalletGate", () => {
     );
 
     expect(screen.queryByText("secret")).toBeNull();
-    expect(screen.getByText("Heed")).toBeTruthy();
+    expect(screen.getByRole("img", { name: "Heed." })).toBeTruthy();
   });
 });
