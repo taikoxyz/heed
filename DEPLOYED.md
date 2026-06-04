@@ -1,5 +1,11 @@
 # Heed — Deployed Contracts
 
+## Web inbox
+
+- [`heed.taiko.xyz`](https://heed.taiko.xyz) — hosted on Vercel, deployed from `main` via [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml).
+
+## Contracts
+
 | Network | Contract | Address | Block | Status |
 |---------|----------|---------|-------|--------|
 | Taiko Mainnet (167000) | `Heed` | [`0x08f32278B2CFD962444ae9541122eD84cc745678`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678) | `6091023` | Live · verified on Taikoscan + Blockscout · **unaudited** |
