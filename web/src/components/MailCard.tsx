@@ -1,12 +1,10 @@
 import { useState } from "react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
+import { Badge, Button, Card, Code, Group, Stack, Text } from "@mantine/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
 import { useCompose } from "../lib/composeDraft";
 import { errorMessage } from "../lib/format";
 import { EnvelopeCard } from "./EnvelopeCard";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
 
 export function MailCard({
   mail,
@@ -54,68 +52,74 @@ export function MailCard({
   const counterpartyLabel = direction === "sent" ? "to" : "from";
 
   return (
-    <Card size="sm">
-      <CardContent className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+    <Card withBorder padding="md" radius="md">
+      <Stack gap="sm">
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <Group gap="xs" wrap="nowrap" miw={0}>
             {read === false && (
               <span
-                className="size-2 shrink-0 bg-signal"
-                style={{
-                  boxShadow:
-                    "0 0 0 2px color-mix(in srgb, var(--signal) 25%, transparent)",
-                }}
                 aria-label="Unread"
                 title="Unread"
+                style={{
+                  flexShrink: 0,
+                  width: 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: "var(--mantine-color-indigo-5)",
+                }}
               />
             )}
-            <span>
-              {counterpartyLabel}{" "}
-              <span className="font-mono">{counterparty}</span>
-            </span>
-          </div>
+            <Text size="sm" c="dimmed">
+              {counterpartyLabel} <Code fz="xs">{counterparty}</Code>
+            </Text>
+          </Group>
           {direction === "received" && (
-            <Button variant="ghost" size="xs" onClick={reply}>
+            <Button variant="subtle" size="compact-sm" onClick={reply}>
               Reply
             </Button>
           )}
-        </div>
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="secondary">
+        </Group>
+        <Group gap="xs" wrap="wrap">
+          <Badge variant="light" color="gray">
             {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei
           </Badge>
-          <span>
-            ref <code>{mail.contentRef.slice(0, 10)}…</code>
-          </span>
-        </div>
+          <Text size="xs" c="dimmed">
+            ref <Code fz="xs">{mail.contentRef.slice(0, 10)}…</Code>
+          </Text>
+        </Group>
 
         {content ? (
-          <div>{renderDecoded(content, mail)}</div>
+          renderDecoded(content, mail)
         ) : (
           <Button
-            variant="outline"
+            variant="default"
             size="sm"
             onClick={() => open(false)}
-            disabled={busy}
+            loading={busy}
+            w="fit-content"
           >
             {busy ? "Decrypting…" : "Open"}
           </Button>
         )}
 
         {error && (
-          <div className="space-y-1 text-xs text-destructive">
-            <div className="break-words">{error}</div>
+          <Stack gap="xs">
+            <Text size="xs" c="red" style={{ wordBreak: "break-word" }}>
+              {error}
+            </Text>
             <Button
-              variant="destructive"
+              variant="light"
+              color="red"
               size="sm"
               onClick={() => open(true)}
-              disabled={busy}
+              loading={busy}
+              w="fit-content"
             >
               Re-sign and retry
             </Button>
-          </div>
+          </Stack>
         )}
-      </CardContent>
+      </Stack>
     </Card>
   );
 }
@@ -126,19 +130,23 @@ function renderDecoded(content: DecodedPayload, mail: MailEvent) {
   }
   if (content.kind === "mail") {
     return (
-      <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">
+      <Stack gap={4}>
+        <Text size="xs" c="dimmed">
           legacy mail · {content.mail.subject}
-        </div>
-        <pre className="text-xs whitespace-pre-wrap font-sans">
+        </Text>
+        <Text
+          component="pre"
+          size="sm"
+          style={{ whiteSpace: "pre-wrap", margin: 0, fontFamily: "inherit" }}
+        >
           {content.mail.body.text}
-        </pre>
-      </div>
+        </Text>
+      </Stack>
     );
   }
   return (
-    <div className="text-xs text-muted-foreground">
+    <Text size="xs" c="dimmed">
       unknown payload — {content.bytes.length} bytes
-    </div>
+    </Text>
   );
 }

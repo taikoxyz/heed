@@ -1,21 +1,22 @@
 import { useState } from "react";
 import { isAddress, type Address } from "viem";
 import { useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import {
+  Badge,
+  Button,
+  Card,
+  Code,
+  Group,
+  NumberInput,
+  Stack,
+  Text,
+  TextInput,
+  Title,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useMyInbox } from "../hooks/useMyInbox";
 import { useHeedActions } from "../hooks/useHeedActions";
 import { errorMessage } from "../lib/format";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -27,7 +28,7 @@ export function Account() {
   const actions = useHeedActions();
   const qc = useQueryClient();
   const [busy, setBusy] = useState<Task | null>(null);
-  const [fee, setFee] = useState("");
+  const [fee, setFee] = useState<number | string>("");
   const [trustAddr, setTrustAddr] = useState("");
 
   const currentKey = inbox?.keys[0];
@@ -41,130 +42,154 @@ export function Account() {
       await fn();
       await qc.invalidateQueries({ queryKey: ["myInbox"] });
     } catch (e) {
-      toast.error(errorMessage(e));
+      notifications.show({ color: "red", message: errorMessage(e) });
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <div className="max-w-xl space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Encryption key</CardTitle>
-          <CardDescription>
-            Publish an X25519 public key so others can send you encrypted mail.
-            It is derived from a wallet signature; the private key never leaves
-            this device.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Status:</span>
+    <Stack gap="md" maw={620}>
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Title order={2}>Encryption key</Title>
+            <Text size="sm" c="dimmed">
+              Publish an X25519 public key so others can send you encrypted
+              mail. It is derived from a wallet signature; the private key never
+              leaves this device.
+            </Text>
+          </Stack>
+          <Group gap="xs" align="center">
+            <Text size="sm" c="dimmed">
+              Status:
+            </Text>
             {isLoading ? (
-              <Badge variant="secondary">loading…</Badge>
+              <Badge variant="light" color="gray">
+                loading…
+              </Badge>
             ) : hasKey ? (
-              <Badge>published (nonce {currentNonce})</Badge>
+              <Badge variant="light" color="teal">
+                published (nonce {currentNonce})
+              </Badge>
             ) : (
-              <Badge variant="destructive">not published</Badge>
+              <Badge variant="light" color="red">
+                not published
+              </Badge>
             )}
-          </div>
+          </Group>
           {hasKey && (
-            <p className="break-all font-mono text-xs text-muted-foreground">
+            <Code block fz="xs" style={{ wordBreak: "break-all" }}>
               {currentKey!.pub}
-            </p>
+            </Code>
           )}
-          <Button
-            disabled={busy !== null}
-            onClick={() =>
-              run("key", async () => {
-                await actions.publishKey(nextNonce);
-                toast.success(`Encryption key published (nonce ${nextNonce}).`);
-              })
-            }
-          >
-            {busy === "key"
-              ? "Publishing…"
-              : hasKey
-                ? "Rotate key"
-                : "Publish key"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Anti-spam fee</CardTitle>
-          <CardDescription>
-            Senders must pay this fee (in gwei) to mail you, unless you trust
-            them.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="text-sm">
-            <span className="text-muted-foreground">Current: </span>
-            <span className="font-mono">
-              {isLoading ? "…" : `${Number(inbox?.feeGwei ?? 0)} gwei`}
-            </span>
-          </div>
-          <div className="space-y-1">
-            <Label htmlFor="account-fee">New fee (gwei)</Label>
-            <Input
-              id="account-fee"
-              type="number"
-              min={0}
-              value={fee}
-              onChange={(e) => setFee(e.target.value)}
-              placeholder="0"
-              className="font-mono"
-            />
-          </div>
-          <Button
-            variant="outline"
-            disabled={busy !== null || fee === ""}
-            onClick={() =>
-              run("fee", async () => {
-                const v = Number(fee);
-                if (!Number.isInteger(v) || v < 0) {
-                  throw new Error("fee must be a non-negative whole number");
-                }
-                await actions.setFee(v);
-                toast.success(`Anti-spam fee set to ${v} gwei.`);
-                setFee("");
-              })
-            }
-          >
-            {busy === "fee" ? "Saving…" : "Set fee"}
-          </Button>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Trusted senders</CardTitle>
-          <CardDescription>
-            Trusted addresses can mail you for free, bypassing your fee.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label htmlFor="account-trust">Address</Label>
-            <Input
-              id="account-trust"
-              value={trustAddr}
-              onChange={(e) => setTrustAddr(e.target.value.trim())}
-              placeholder="0x…"
-              className="font-mono"
-            />
-          </div>
-          <div className="flex gap-2">
+          <Group>
             <Button
-              variant="outline"
+              loading={busy === "key"}
+              disabled={busy !== null}
+              onClick={() =>
+                run("key", async () => {
+                  await actions.publishKey(nextNonce);
+                  notifications.show({
+                    color: "teal",
+                    message: `Encryption key published (nonce ${nextNonce}).`,
+                  });
+                })
+              }
+            >
+              {busy === "key"
+                ? "Publishing…"
+                : hasKey
+                  ? "Rotate key"
+                  : "Publish key"}
+            </Button>
+          </Group>
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Title order={2}>Anti-spam fee</Title>
+            <Text size="sm" c="dimmed">
+              Senders must pay this fee (in gwei) to mail you, unless you trust
+              them.
+            </Text>
+          </Stack>
+          <Text size="sm">
+            <Text component="span" c="dimmed">
+              Current:{" "}
+            </Text>
+            <Code fz="xs">
+              {isLoading ? "…" : `${Number(inbox?.feeGwei ?? 0)} gwei`}
+            </Code>
+          </Text>
+          <NumberInput
+            id="account-fee"
+            label="New fee (gwei)"
+            min={0}
+            value={fee}
+            onChange={(v) => setFee(v as number | string)}
+            placeholder="0"
+            allowDecimal={false}
+            allowNegative={false}
+          />
+          <Group>
+            <Button
+              variant="default"
+              loading={busy === "fee"}
+              disabled={busy !== null || fee === ""}
+              onClick={() =>
+                run("fee", async () => {
+                  const v = Number(fee);
+                  if (!Number.isInteger(v) || v < 0) {
+                    throw new Error("fee must be a non-negative whole number");
+                  }
+                  await actions.setFee(v);
+                  notifications.show({
+                    color: "teal",
+                    message: `Anti-spam fee set to ${v} gwei.`,
+                  });
+                  setFee("");
+                })
+              }
+            >
+              {busy === "fee" ? "Saving…" : "Set fee"}
+            </Button>
+          </Group>
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Title order={2}>Trusted senders</Title>
+            <Text size="sm" c="dimmed">
+              Trusted addresses can mail you for free, bypassing your fee.
+            </Text>
+          </Stack>
+          <TextInput
+            id="account-trust"
+            label="Address"
+            value={trustAddr}
+            onChange={(e) => setTrustAddr(e.currentTarget.value.trim())}
+            placeholder="0x…"
+            styles={{
+              input: { fontFamily: "var(--mantine-font-family-monospace)" },
+            }}
+          />
+          <Group>
+            <Button
+              variant="default"
+              loading={busy === "trust"}
               disabled={busy !== null || !isAddress(trustAddr)}
               onClick={() =>
                 run("trust", async () => {
                   await actions.trust([trustAddr as Address]);
-                  toast.success("Sender trusted.");
+                  notifications.show({
+                    color: "teal",
+                    message: "Sender trusted.",
+                  });
                   setTrustAddr("");
                 })
               }
@@ -172,21 +197,25 @@ export function Account() {
               {busy === "trust" ? "Trusting…" : "Trust"}
             </Button>
             <Button
-              variant="ghost"
+              variant="subtle"
+              loading={busy === "untrust"}
               disabled={busy !== null || !isAddress(trustAddr)}
               onClick={() =>
                 run("untrust", async () => {
                   await actions.untrust([trustAddr as Address]);
-                  toast.success("Sender untrusted.");
+                  notifications.show({
+                    color: "teal",
+                    message: "Sender untrusted.",
+                  });
                   setTrustAddr("");
                 })
               }
             >
               {busy === "untrust" ? "Removing…" : "Untrust"}
             </Button>
-          </div>
-        </CardContent>
+          </Group>
+        </Stack>
       </Card>
-    </div>
+    </Stack>
   );
 }

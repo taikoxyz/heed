@@ -1,8 +1,7 @@
-import { TriangleAlertIcon } from "lucide-react";
 import { useAccount, useSwitchChain } from "wagmi";
+import { Alert, Button, Group } from "@mantine/core";
+import { IconAlertTriangle } from "@tabler/icons-react";
 import { DEFAULT_CHAIN_ID, NETWORKS, SUPPORTED_CHAIN_IDS } from "../lib/config";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
 
 export function NetworkGuard() {
   const { isConnected, chainId } = useAccount();
@@ -17,23 +16,27 @@ export function NetworkGuard() {
   const fallback = NETWORKS[DEFAULT_CHAIN_ID]!;
 
   return (
-    <Alert variant="destructive" className="mb-4">
-      <TriangleAlertIcon />
-      <AlertTitle>Unsupported network</AlertTitle>
-      <AlertDescription className="flex flex-wrap items-center gap-2">
+    <Alert
+      color="red"
+      variant="light"
+      icon={<IconAlertTriangle />}
+      title="Unsupported network"
+      mb="md"
+    >
+      <Group gap="sm" wrap="wrap" align="center">
         <span>
           Heed runs on Taiko and Ethereum. Switch your wallet to a supported
           network to continue.
         </span>
         <Button
-          size="sm"
-          variant="outline"
+          size="xs"
+          variant="default"
           disabled={isPending}
           onClick={() => switchChain({ chainId: fallback.chainId })}
         >
           {isPending ? "Switching…" : `Switch to ${fallback.label}`}
         </Button>
-      </AlertDescription>
+      </Group>
     </Alert>
   );
 }

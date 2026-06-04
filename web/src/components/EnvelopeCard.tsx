@@ -5,20 +5,26 @@ import {
   type Envelope,
   type MailEvent,
 } from "@heed/core";
+import {
+  Anchor,
+  Badge,
+  Box,
+  Button,
+  Code,
+  Divider,
+  Group,
+  Stack,
+  Text,
+  Title,
+} from "@mantine/core";
 import { type ResolvedIdentity } from "../lib/uri";
 import { resolveIdentity } from "../lib/identity";
 import { getEffectiveConfig } from "../lib/settings";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
 
-const URGENCY_VARIANT: Record<
-  Envelope["urgency"],
-  "secondary" | "outline" | "destructive"
-> = {
-  low: "secondary",
-  normal: "outline",
-  high: "destructive",
+const URGENCY_COLOR: Record<Envelope["urgency"], string> = {
+  low: "gray",
+  normal: "blue",
+  high: "red",
 };
 
 export function EnvelopeCard({
@@ -84,25 +90,33 @@ export function EnvelopeCard({
           ? "⚠ signature could not be verified"
           : "verifying signature…";
 
+  const signerColor =
+    signerCheck === "match"
+      ? "teal"
+      : signerCheck === "mismatch" || signerCheck === "error"
+        ? "red"
+        : "dimmed";
+
   return (
-    <article className="space-y-2">
-      <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-semibold text-base">
+    <Stack gap="sm" component="article">
+      <Group gap="xs" wrap="wrap">
+        <Text fw={600} size="sm">
           {envelope.from.name || mailSenderShort(mail)}
-        </span>
+        </Text>
         {envelope.from.owner_url && (
-          <a
-            className="text-xs text-signal hover:underline"
+          <Anchor
             href={envelope.from.owner_url}
             target="_blank"
             rel="noreferrer noopener"
+            size="xs"
           >
             {hostnameOf(envelope.from.owner_url)}
-          </a>
+          </Anchor>
         )}
         {identity && (
           <Badge
-            variant={identity.verified ? "secondary" : "outline"}
+            variant={identity.verified ? "light" : "outline"}
+            color={identity.verified ? "teal" : "gray"}
             title={identity.description ?? identity.raw}
           >
             {identity.verified ? "✓ " : "○ "}
@@ -114,57 +128,60 @@ export function EnvelopeCard({
             · {identity.display_name ?? identity.raw}
           </Badge>
         )}
-        <Badge variant={URGENCY_VARIANT[envelope.urgency]}>
+        <Badge variant="light" color={URGENCY_COLOR[envelope.urgency]}>
           {envelope.urgency}
         </Badge>
-      </header>
+      </Group>
 
-      <h3 className="font-heading text-2xl font-semibold tracking-tight leading-tight">
+      <Title order={3} size="h3" mt="xs" mb="xs">
         {envelope.title}
-      </h3>
+      </Title>
 
-      <pre className="text-base text-foreground whitespace-pre-wrap font-sans leading-relaxed">
+      <Text
+        component="pre"
+        size="sm"
+        style={{ whiteSpace: "pre-wrap", margin: 0, fontFamily: "inherit" }}
+      >
         {envelope.body}
-      </pre>
+      </Text>
 
       {envelope.action_url && (
-        <Button asChild size="sm">
-          <a
+        <Box>
+          <Button
+            component="a"
             href={envelope.action_url}
             target="_blank"
             rel="noreferrer noopener"
+            size="sm"
+            variant="default"
           >
             {hostnameOf(envelope.action_url)} →
-          </a>
-        </Button>
+          </Button>
+        </Box>
       )}
 
-      <Separator />
+      <Divider my="xs" />
 
-      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
-        <span>sent {formatTimestamp(envelope.sent_at)}</span>
-        <span title={mail.sender} className="font-mono">
-          from {mailSenderShort(mail)}
-        </span>
-        <span>fee {mail.valueGwei} gwei</span>
+      <Group component="footer" gap="md" wrap="wrap">
+        <Text size="xs" c="dimmed">
+          sent {formatTimestamp(envelope.sent_at)}
+        </Text>
+        <Text size="xs" c="dimmed" title={mail.sender}>
+          from <Code fz="xs">{mailSenderShort(mail)}</Code>
+        </Text>
+        <Text size="xs" c="dimmed">
+          fee {mail.valueGwei} gwei
+        </Text>
         {envelope.reply_to && (
-          <span title={envelope.reply_to} className="font-mono">
-            in reply to {envelope.reply_to.slice(0, 10)}…
-          </span>
+          <Text size="xs" c="dimmed" title={envelope.reply_to}>
+            in reply to <Code fz="xs">{envelope.reply_to.slice(0, 10)}…</Code>
+          </Text>
         )}
-        <span
-          className={
-            signerCheck === "match"
-              ? "text-signal"
-              : signerCheck === "mismatch" || signerCheck === "error"
-                ? "text-destructive"
-                : ""
-          }
-        >
+        <Text size="xs" c={signerColor}>
           {signerLabel}
-        </span>
-      </footer>
-    </article>
+        </Text>
+      </Group>
+    </Stack>
   );
 }
 

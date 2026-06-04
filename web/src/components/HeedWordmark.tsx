@@ -1,5 +1,6 @@
 type Props = {
   className?: string;
+  height?: number;
 };
 
 type Glyph = {
@@ -82,7 +83,7 @@ const RADIUS = 0.7;
 const VIEW_WIDTH = (periodCol + 1) * STEP;
 const VIEW_HEIGHT = 5 * STEP;
 
-export function HeedWordmark({ className }: Props) {
+export function HeedWordmark({ className, height = 24 }: Props) {
   return (
     <svg
       viewBox={`0 0 ${VIEW_WIDTH} ${VIEW_HEIGHT}`}
@@ -90,6 +91,7 @@ export function HeedWordmark({ className }: Props) {
       role="img"
       aria-label="Heed."
       className={className}
+      style={{ height, width: "auto", display: "block" }}
     >
       <g fill="currentColor">
         {LETTER_DOTS.map(([col, row]) => (
@@ -109,7 +111,7 @@ export function HeedWordmark({ className }: Props) {
         width={DOT}
         height={DOT}
         rx={RADIUS}
-        className="fill-signal"
+        fill="var(--mantine-color-indigo-5)"
       />
     </svg>
   );

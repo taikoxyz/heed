@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MantineProvider } from "@mantine/core";
 import { Settings } from "../src/components/Settings";
 import {
   clearSettings,
@@ -12,9 +13,11 @@ import {
 function renderSettings() {
   const client = new QueryClient();
   return render(
-    <QueryClientProvider client={client}>
-      <Settings />
-    </QueryClientProvider>,
+    <MantineProvider>
+      <QueryClientProvider client={client}>
+        <Settings />
+      </QueryClientProvider>
+    </MantineProvider>,
   );
 }
 

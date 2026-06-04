@@ -1,4 +1,5 @@
 import { Component, type ReactNode } from "react";
+import { Alert, Anchor, Stack } from "@mantine/core";
 
 interface Props {
   children: ReactNode;
@@ -23,12 +24,14 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     if (this.props.fallback) return this.props.fallback(error, this.reset);
     return (
-      <div className="p-4 text-sm text-red-600 space-y-1">
-        <div className="break-words">{error.message}</div>
-        <button onClick={this.reset} className="underline text-red-700">
-          Try again
-        </button>
-      </div>
+      <Alert color="red" variant="light" m="md">
+        <Stack gap="xs">
+          <div style={{ wordBreak: "break-word" }}>{error.message}</div>
+          <Anchor component="button" onClick={this.reset} c="red">
+            Try again
+          </Anchor>
+        </Stack>
+      </Alert>
     );
   }
 }

@@ -3,7 +3,20 @@ import { createPublicClient, http, isAddress, type Address } from "viem";
 import { createReadClient } from "@heed/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import { toast } from "sonner";
+import {
+  Anchor,
+  Button,
+  Card,
+  Code,
+  Group,
+  Modal,
+  Stack,
+  Text,
+  TextInput,
+  Textarea,
+  Title,
+} from "@mantine/core";
+import { notifications } from "@mantine/notifications";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
 import { useCompose } from "../lib/composeDraft";
 import { getEffectiveConfig } from "../lib/settings";
@@ -13,19 +26,6 @@ import {
   saveDraft as saveDbDraft,
 } from "../lib/db";
 import { errorMessage } from "../lib/format";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 const STAGE_LABEL: Record<SendStage, string> = {
   lookup: "Looking up recipients…",
@@ -105,12 +105,10 @@ export function Compose() {
     encrypted: boolean;
   } | null>(null);
 
-  // Consume the one-shot draft so a later manual visit starts blank.
   useEffect(() => {
     clearDraft();
   }, [clearDraft]);
 
-  // Restore a persisted draft, but only when there's no one-shot reply prefill.
   useEffect(() => {
     if (seeded.current || hadContextDraft.current || !account) return;
     seeded.current = true;
@@ -124,7 +122,6 @@ export function Compose() {
     });
   }, [account, cfg.chainId]);
 
-  // Auto-save the draft (debounced) so it survives a page reload.
   useEffect(() => {
     if (!account) return;
     const handle = setTimeout(() => {
@@ -196,7 +193,10 @@ export function Compose() {
       return;
     }
     if (!subject.trim() && !body.trim()) {
-      toast.error("subject or body must be non-empty");
+      notifications.show({
+        color: "red",
+        message: "subject or body must be non-empty",
+      });
       return;
     }
     const encrypted = preview ? preview.encrypted : await refreshPreview();
@@ -228,12 +228,13 @@ export function Compose() {
       setBody("");
       setPreview(null);
       if (account) void clearDbDraft(cfg.chainId, account).catch(() => {});
-      toast.success(
-        `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
-      );
+      notifications.show({
+        color: "teal",
+        message: `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
+      });
       await qc.invalidateQueries({ queryKey: ["outbox"] });
     } catch (e) {
-      toast.error(errorMessage(e));
+      notifications.show({ color: "red", message: errorMessage(e) });
     } finally {
       setBusy(false);
       setStage(null);
@@ -241,119 +242,112 @@ export function Compose() {
   }
 
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Compose</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="compose-to">To (one or more addresses)</Label>
-          <Input
-            id="compose-to"
-            type="text"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            onBlur={refreshPreview}
-            placeholder="0x… , 0x…"
-            className="font-mono"
-          />
-        </div>
+    <Card withBorder maw={720} padding="lg" radius="md">
+      <Stack gap="md">
+        <Title order={2}>Compose</Title>
 
-        <div className="space-y-1">
-          <Label htmlFor="compose-cc">Cc (optional)</Label>
-          <Input
-            id="compose-cc"
-            type="text"
-            value={cc}
-            onChange={(e) => setCc(e.target.value)}
-            onBlur={refreshPreview}
-            placeholder="0x… , 0x…"
-            className="font-mono"
-          />
-        </div>
+        <TextInput
+          id="compose-to"
+          label="To (one or more addresses)"
+          value={to}
+          onChange={(e) => setTo(e.currentTarget.value)}
+          onBlur={refreshPreview}
+          placeholder="0x… , 0x…"
+          styles={{
+            input: { fontFamily: "var(--mantine-font-family-monospace)" },
+          }}
+        />
+
+        <TextInput
+          id="compose-cc"
+          label="Cc (optional)"
+          value={cc}
+          onChange={(e) => setCc(e.currentTarget.value)}
+          onBlur={refreshPreview}
+          placeholder="0x… , 0x…"
+          styles={{
+            input: { fontFamily: "var(--mantine-font-family-monospace)" },
+          }}
+        />
 
         {hint && (
-          <p
-            className={`text-xs ${
-              preview && !preview.encrypted
-                ? "text-amber-600"
-                : "text-muted-foreground"
-            }`}
+          <Text
+            size="xs"
+            c={preview && !preview.encrypted ? "yellow" : "dimmed"}
           >
             {hint}
-          </p>
+          </Text>
         )}
 
-        <div className="space-y-1">
-          <Label htmlFor="compose-subject">Subject</Label>
-          <Input
-            id="compose-subject"
-            type="text"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-        </div>
+        <TextInput
+          id="compose-subject"
+          label="Subject"
+          value={subject}
+          onChange={(e) => setSubject(e.currentTarget.value)}
+        />
 
-        <div className="space-y-1">
-          <Label htmlFor="compose-body">Body</Label>
-          <Textarea
-            id="compose-body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={8}
-          />
-        </div>
+        <Textarea
+          id="compose-body"
+          label="Body"
+          value={body}
+          onChange={(e) => setBody(e.currentTarget.value)}
+          rows={8}
+          autosize
+          minRows={8}
+        />
 
-        <div className="flex items-center gap-3 pt-1">
-          <Button onClick={onSend} disabled={busy}>
+        <Group gap="md" align="center">
+          <Button onClick={onSend} loading={busy} disabled={busy}>
             {busy ? "Sending…" : "Send"}
           </Button>
           {stage && (
-            <span className="text-sm text-muted-foreground">
+            <Text size="sm" c="dimmed">
               {STAGE_LABEL[stage]}
-            </span>
+            </Text>
           )}
-        </div>
+        </Group>
 
         {result && (
-          <div className="space-y-1 text-sm">
-            <div className="break-all">
-              tx: <code className="text-xs">{result.txHash}</code>
-            </div>
-            <div className="break-all">
-              cid: <code className="text-xs">{result.cid}</code>
-            </div>
-            <a
-              className="text-xs text-signal underline"
+          <Stack gap={4}>
+            <Text size="sm" style={{ wordBreak: "break-all" }}>
+              tx: <Code fz="xs">{result.txHash}</Code>
+            </Text>
+            <Text size="sm" style={{ wordBreak: "break-all" }}>
+              cid: <Code fz="xs">{result.cid}</Code>
+            </Text>
+            <Anchor
+              size="xs"
               href={`${cfg.explorer}/tx/${result.txHash}`}
               target="_blank"
               rel="noreferrer"
             >
               View on {cfg.label} explorer ↗
-            </a>
-          </div>
+            </Anchor>
+          </Stack>
         )}
-      </CardContent>
+      </Stack>
 
-      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Send as plaintext?</DialogTitle>
-            <DialogDescription>
-              One or more recipients have not published an encryption key. This
-              message will be stored unencrypted on IPFS and anyone can read it.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
+      <Modal
+        opened={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Send as plaintext?"
+        centered
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            One or more recipients have not published an encryption key. This
+            message will be stored unencrypted on IPFS and anyone can read it.
+          </Text>
+          <Group justify="flex-end" gap="xs">
+            <Button variant="subtle" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={doSend}>
+            <Button color="red" onClick={doSend}>
               Send plaintext
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </Group>
+        </Stack>
+      </Modal>
     </Card>
   );
 }
