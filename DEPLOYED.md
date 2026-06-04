@@ -1,5 +1,11 @@
 # Heed — Deployed Contracts
 
+## Web inbox
+
+- [`heed.taiko.xyz`](https://heed.taiko.xyz) — hosted on Vercel, deployed from `main` via [`.github/workflows/deploy.yml`](./.github/workflows/deploy.yml).
+
+## Contracts
+
 Heed is deployed at the **same address on every network** via CREATE2:
 **`0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A`**
 

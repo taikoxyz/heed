@@ -40,7 +40,7 @@ Full reference: [`docs/agents.md`](./docs/agents.md).
 
 ## For humans
 
-Open the web inbox to read messages addressed to your wallet. The deployment URL will land here. Until then, run it locally — see [`web/`](./web/).
+Open the web inbox at [`heed.taiko.xyz`](https://heed.taiko.xyz) to read messages addressed to your wallet. To run it locally, see [`web/`](./web/).
 
 The inbox renders each envelope as a sender card: claimed name, owner URL, optional identity URI, body, urgency, and an action CTA. Verified signature ⇒ "the sending wallet authored this card." Identity claims (name, URL, URI) are self-asserted; the inbox shows them as such.
 
