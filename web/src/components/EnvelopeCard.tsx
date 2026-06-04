@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useAccount } from "wagmi";
 import {
   recoverEnvelopeSigner,
   type Envelope,
@@ -27,6 +28,7 @@ export function EnvelopeCard({
   envelope: Envelope;
   mail: MailEvent;
 }) {
+  const { chainId } = useAccount();
   const [identity, setIdentity] = useState<ResolvedIdentity | null>(null);
   const [signerCheck, setSignerCheck] = useState<
     "pending" | "match" | "mismatch" | "error"
@@ -34,7 +36,7 @@ export function EnvelopeCard({
 
   useEffect(() => {
     let cancelled = false;
-    const cfg = getEffectiveConfig();
+    const cfg = getEffectiveConfig(chainId);
     void (async () => {
       try {
         const recovered = await recoverEnvelopeSigner({
@@ -56,7 +58,7 @@ export function EnvelopeCard({
     return () => {
       cancelled = true;
     };
-  }, [envelope, mail.sender]);
+  }, [envelope, mail.sender, chainId]);
 
   useEffect(() => {
     if (!envelope.from.uri) {
@@ -64,14 +66,14 @@ export function EnvelopeCard({
       return;
     }
     let cancelled = false;
-    const cfg = getEffectiveConfig();
-    void resolveIdentity(envelope.from.uri, cfg.rpcUrl).then((r) => {
+    const cfg = getEffectiveConfig(chainId);
+    void resolveIdentity(envelope.from.uri, cfg.rpcUrl, cfg.chain).then((r) => {
       if (!cancelled) setIdentity(r);
     });
     return () => {
       cancelled = true;
     };
-  }, [envelope.from.uri]);
+  }, [envelope.from.uri, chainId]);
 
   const signerLabel =
     signerCheck === "match"

@@ -1,4 +1,5 @@
-import { config, parseGateways } from "./config";
+import type { Chain } from "viem";
+import { config, DEFAULT_CHAIN_ID, getNetwork, parseGateways } from "./config";
 
 export interface Settings {
   rpcUrl: string;
@@ -44,23 +45,34 @@ export function clearSettings(): void {
 }
 
 export interface EffectiveConfig {
+  chain: Chain;
+  label: string;
   contractAddress: `0x${string}`;
   chainId: number;
   deployedAtBlock: bigint;
   rpcUrl: string;
+  explorer: string;
   ipfsGateways: string[];
   indexerUrl: string | undefined;
   maxFeeGwei: number;
   pinataJwt: string;
 }
 
-export function getEffectiveConfig(): EffectiveConfig {
+// Resolves the effective config for the active network. The Settings RPC
+// override applies to the default (Taiko) network so a saved override can't
+// misroute a different chain's calls; other chains use their registry RPC.
+export function getEffectiveConfig(chainId?: number): EffectiveConfig {
   const s = loadSettings();
+  const net = getNetwork(chainId);
   return {
-    contractAddress: config.contractAddress,
-    chainId: config.chainId,
-    deployedAtBlock: config.deployedAtBlock,
-    rpcUrl: s.rpcUrl || config.rpcUrl,
+    chain: net.chain,
+    label: net.label,
+    contractAddress: net.contractAddress,
+    chainId: net.chainId,
+    deployedAtBlock: net.deployedAtBlock,
+    rpcUrl:
+      net.chainId === DEFAULT_CHAIN_ID ? s.rpcUrl || net.rpcUrl : net.rpcUrl,
+    explorer: net.explorer,
     ipfsGateways: s.ipfsGateway
       ? parseGateways(s.ipfsGateway)
       : config.ipfsGateways,

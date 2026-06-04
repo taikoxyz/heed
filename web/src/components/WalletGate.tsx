@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { useAccount, useConnect, useDisconnect } from "wagmi";
 import { clearKeys } from "../lib/keys";
 import { HeedWordmark } from "./HeedWordmark";
+import { NetworkSwitcher } from "./NetworkSwitcher";
 import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">
+          <NetworkSwitcher />
           <ThemeToggle />
           <Button variant="ghost" size="sm" onClick={onDisconnect}>
             Disconnect

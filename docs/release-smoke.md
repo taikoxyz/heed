@@ -1,6 +1,6 @@
 # Release Smoke — Mainnet Manual Checklist
 
-Run this before each release tag (and before any npm publish of `heed-cli` / `@heed/core`). The anvil-fork e2e (`npm run e2e`) covers the codepath; this checklist exercises real Taiko mainnet, real ETH, real IPFS, and the deployed [`Heed.sol`](https://taikoscan.io/address/0x08f32278B2CFD962444ae9541122eD84cc745678).
+Run this before each release tag (and before any npm publish of `heed-cli` / `@heed/core`). The anvil-fork e2e (`npm run e2e`) covers the codepath; this checklist exercises real Taiko mainnet, real ETH, real IPFS, and the deployed [`Heed.sol`](https://taikoscan.io/address/0x030126A6ef84B4BCdCc0797a6B06C1F06655E41A).
 
 Audit this off — if any step fails, **block the tag** until the regression is fixed.
 

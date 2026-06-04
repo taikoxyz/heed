@@ -161,7 +161,7 @@ export function Settings() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1">
-            <Label htmlFor="settings-rpc">RPC URL</Label>
+            <Label htmlFor="settings-rpc">Taiko RPC URL</Label>
             <Input
               id="settings-rpc"
               type="text"

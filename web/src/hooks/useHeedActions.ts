@@ -7,7 +7,6 @@ import {
   type Hex,
   type PublicClient,
 } from "viem";
-import { taiko } from "viem/chains";
 import {
   createWriteClient,
   deriveX25519Public,
@@ -25,20 +24,20 @@ async function confirm(client: PublicClient, txHash: Hex): Promise<Hex> {
 }
 
 export function useHeedActions() {
-  const { address } = useAccount();
+  const { address, chainId } = useAccount();
   const { data: walletClient } = useWalletClient();
   const { signTypedDataAsync } = useSignTypedData();
 
   function ctx() {
     if (!address) throw new Error("connect a wallet first");
     if (!walletClient) throw new Error("wallet not ready");
-    const cfg = getEffectiveConfig();
+    const cfg = getEffectiveConfig(chainId);
     return {
       address,
       cfg,
       writer: createWriteClient(walletClient, cfg.contractAddress),
       publicClient: createPublicClient({
-        chain: taiko,
+        chain: cfg.chain,
         transport: http(cfg.rpcUrl),
       }),
     };
@@ -55,7 +54,10 @@ export function useHeedActions() {
       });
       const sk = putKey(address, keyNonce, sig);
       const pub = bytesToHex(deriveX25519Public(sk));
-      const txHash = await confirm(publicClient, await writer.publishKey(keyNonce, pub));
+      const txHash = await confirm(
+        publicClient,
+        await writer.publishKey(keyNonce, pub),
+      );
       return { txHash, pub };
     },
 

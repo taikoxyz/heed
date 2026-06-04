@@ -35,7 +35,7 @@ changing it.
 
 Copy [`.env.example`](.env.example) to `.env.local` and adjust as needed. The
 defaults target Taiko mainnet with the production Heed contract (deployment
-captured in [`deployments/mainnet.json`](../deployments/mainnet.json)).
+captured in [`deployments/taiko.json`](../deployments/taiko.json)).
 
 | Variable                 | Purpose                                                          |
 | ------------------------ | ---------------------------------------------------------------- |

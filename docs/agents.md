@@ -214,9 +214,14 @@ heed config path                   # print the config file path
 heed config get                    # whole config
 heed config get network.rpc_url
 heed config set network.rpc_url https://rpc.taiko.xyz
+heed config use-network ethereum   # switch network preset (taiko | ethereum)
 ```
 
 Allowed keys are listed by the CLI when an unknown key is passed.
+
+Heed is deployed at the **same address** on Taiko and Ethereum. `use-network` swaps
+the whole network block (chain, RPC, contract, start block) in one step; encryption
+keys are per-network, so run `heed setup` again after switching.
 
 ## Troubleshooting
 

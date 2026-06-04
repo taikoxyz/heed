@@ -2,15 +2,14 @@ import { useRef } from "react";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { createPublicClient, http } from "viem";
-import { taiko } from "viem/chains";
 import { createRpcMailSource, createIndexerMailSource } from "@heed/core";
 import { getEffectiveConfig } from "../lib/settings";
 import { getMessages, putMessages } from "../lib/db";
 import { setProgress, useProgress } from "../lib/progressStore";
 
 export function useOutbox() {
-  const { address } = useAccount();
-  const cfg = getEffectiveConfig();
+  const { address, chainId } = useAccount();
+  const cfg = getEffectiveConfig(chainId);
   const account = address?.toLowerCase();
   // Progress lives in a module-level store keyed by the query so a queryFn
   // started before a tab switch keeps updating whichever observer is mounted
@@ -55,7 +54,7 @@ export function useOutbox() {
         ? createIndexerMailSource(cfg.indexerUrl)
         : createRpcMailSource({
             client: createPublicClient({
-              chain: taiko,
+              chain: cfg.chain,
               transport: http(cfg.rpcUrl),
             }),
             contract: cfg.contractAddress,
