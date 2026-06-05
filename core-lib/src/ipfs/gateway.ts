@@ -41,8 +41,11 @@ export async function fetchCidWithFallback(
       }
     }
   }
+  const urls = gateways
+    .map((g) => `  ${g.replace(/\/$/, "")}/ipfs/${cid}`)
+    .join("\n");
   throw new Error(
-    `all gateways failed for ${cid}: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}`,
+    `all gateways failed for ${cid}: ${lastErr instanceof Error ? lastErr.message : String(lastErr)}\nTried:\n${urls}`,
   );
 }
 
