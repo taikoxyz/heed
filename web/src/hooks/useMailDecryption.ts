@@ -1,5 +1,7 @@
 import { useAccount, useSignTypedData } from "wagmi";
 import {
+  DAG_PB_CODE,
+  RAW_CODE,
   decodeEncryptedBytes,
   decodePayload,
   digestToCid,
@@ -34,8 +36,23 @@ export function useMailDecryption() {
 
     const cfg = getEffectiveConfig(chainId);
     const digest = hexToBytes(contentRefHex);
-    const cid = digestToCid(digest);
-    const bytes = await fetchCidWithFallback(cid, cfg.ipfsGateways);
+    // Only the multihash digest is stored on-chain — the codec is lost.
+    // Pinata's pinJSONToIPFS returns raw-codec CIDs, but older or
+    // file-based pins use dag-pb. Try raw first, fall back to dag-pb.
+    let bytes: Uint8Array | undefined;
+    let lastErr: unknown;
+    for (const codec of [RAW_CODE, DAG_PB_CODE]) {
+      try {
+        bytes = await fetchCidWithFallback(
+          digestToCid(digest, codec),
+          cfg.ipfsGateways,
+        );
+        break;
+      } catch (err) {
+        lastErr = err;
+      }
+    }
+    if (!bytes) throw lastErr;
 
     const outer = tryParseJson(bytes);
     if (!isEncryptedShape(outer)) {
