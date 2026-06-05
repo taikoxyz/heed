@@ -1,5 +1,4 @@
 import { useAccount, useSwitchChain } from "wagmi";
-import { NETWORKS, SUPPORTED_CHAIN_IDS, SUPPORTED_CHAINS } from "../lib/config";
 import {
   Select,
   SelectContent,
@@ -7,6 +6,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { NETWORKS, SUPPORTED_CHAIN_IDS, SUPPORTED_CHAINS } from "../lib/config";
 
 export function NetworkSwitcher() {
   const { isConnected, chainId } = useAccount();
@@ -23,12 +23,12 @@ export function NetworkSwitcher() {
       onValueChange={(v) => switchChain({ chainId: Number(v) })}
       disabled={isPending}
     >
-      <SelectTrigger size="sm" className="w-[116px]">
+      <SelectTrigger size="sm" className="w-[118px] font-mono text-xs">
         <SelectValue placeholder="Network" />
       </SelectTrigger>
       <SelectContent>
         {SUPPORTED_CHAINS.map((c) => (
-          <SelectItem key={c.id} value={String(c.id)}>
+          <SelectItem key={c.id} value={String(c.id)} className="font-mono">
             {NETWORKS[c.id]!.label}
           </SelectItem>
         ))}

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { taiko, mainnet } from "viem/chains";
 import { Settings } from "../src/components/Settings";
 import {
   clearSettings,
@@ -25,10 +26,19 @@ describe("Settings persistence", () => {
 
   it("round-trips through localStorage", () => {
     const written: SettingsT = {
-      rpcUrl: "https://example.org/rpc",
+      networks: {
+        [taiko.id]: {
+          rpcUrl: "https://example.org/taiko-rpc",
+          indexerUrl: "https://taiko-indexer.example.org/graphql",
+          maxFeeGwei: 42,
+        },
+        [mainnet.id]: {
+          rpcUrl: "https://example.org/eth-rpc",
+          indexerUrl: "",
+          maxFeeGwei: 500,
+        },
+      },
       ipfsGateway: "https://gw.example.org",
-      indexerUrl: "https://indexer.example.org/graphql",
-      maxFeeGwei: 42,
       pinataJwt: "eyJfake.jwt.value",
     };
     saveSettings(written);
@@ -37,15 +47,42 @@ describe("Settings persistence", () => {
 
   it("returns empty defaults when nothing is saved", () => {
     expect(loadSettings()).toEqual({
-      rpcUrl: "",
+      networks: {
+        [taiko.id]: { rpcUrl: "", indexerUrl: "", maxFeeGwei: 0 },
+        [mainnet.id]: { rpcUrl: "", indexerUrl: "", maxFeeGwei: 0 },
+      },
       ipfsGateway: "",
-      indexerUrl: "",
-      maxFeeGwei: 0,
       pinataJwt: "",
     });
   });
 
-  it("Settings UI saves edits to localStorage", () => {
+  it("migrates the legacy flat shape into the default chain slot", () => {
+    window.localStorage.setItem(
+      "heed:settings",
+      JSON.stringify({
+        rpcUrl: "https://legacy.example/rpc",
+        indexerUrl: "https://legacy.example/indexer",
+        maxFeeGwei: 7,
+        ipfsGateway: "https://gw.legacy.example",
+        pinataJwt: "legacy.jwt",
+      }),
+    );
+    const loaded = loadSettings();
+    expect(loaded.networks[taiko.id]).toEqual({
+      rpcUrl: "https://legacy.example/rpc",
+      indexerUrl: "https://legacy.example/indexer",
+      maxFeeGwei: 7,
+    });
+    expect(loaded.networks[mainnet.id]).toEqual({
+      rpcUrl: "",
+      indexerUrl: "",
+      maxFeeGwei: 0,
+    });
+    expect(loaded.ipfsGateway).toBe("https://gw.legacy.example");
+    expect(loaded.pinataJwt).toBe("legacy.jwt");
+  });
+
+  it("Settings UI saves Taiko RPC edits to localStorage", () => {
     renderSettings();
     const rpc = screen.getByPlaceholderText(
       "https://rpc.mainnet.taiko.xyz",
@@ -53,7 +90,9 @@ describe("Settings persistence", () => {
     fireEvent.change(rpc, { target: { value: "https://custom.rpc" } });
     fireEvent.click(screen.getByText("Save"));
 
-    expect(loadSettings().rpcUrl).toBe("https://custom.rpc");
-    expect(screen.getByText("Saved.")).toBeTruthy();
+    expect(loadSettings().networks[taiko.id]!.rpcUrl).toBe(
+      "https://custom.rpc",
+    );
+    expect(screen.getByText("Saved")).toBeTruthy();
   });
 });

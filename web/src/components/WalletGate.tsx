@@ -1,75 +1,88 @@
 import type { ReactNode } from "react";
-import { useAccount, useConnect, useDisconnect } from "wagmi";
-import { clearKeys } from "../lib/keys";
+import { ArrowRightIcon } from "lucide-react";
+import { useAccount, useConnect } from "wagmi";
 import { HeedWordmark } from "./HeedWordmark";
-import { NetworkSwitcher } from "./NetworkSwitcher";
-import { ThemeToggle } from "./ThemeToggle";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
 export function WalletGate({ children }: { children: ReactNode }) {
-  const { address, isConnected } = useAccount();
+  const { isConnected } = useAccount();
   const { connect, connectors } = useConnect();
-  const { disconnect } = useDisconnect();
-
-  function onDisconnect() {
-    clearKeys();
-    disconnect();
-  }
 
   if (!isConnected) {
     return (
-      <div className="flex min-h-screen items-center justify-center p-6">
-        <Card className="w-full max-w-md">
-          <CardHeader className="gap-3">
-            <CardTitle>
-              <HeedWordmark className="h-10 w-auto" />
-            </CardTitle>
-            <CardDescription className="text-base">
+      <div className="grain relative flex min-h-screen flex-col overflow-hidden">
+        <div
+          className="grid-bg pointer-events-none absolute inset-0 opacity-60 [mask-image:radial-gradient(ellipse_80%_60%_at_50%_30%,black,transparent_75%)]"
+          aria-hidden
+        />
+        <div
+          className="signal-glow pointer-events-none absolute inset-x-0 top-0 h-[70vh]"
+          aria-hidden
+        />
+
+        <main className="relative z-10 mx-auto flex w-full max-w-xl flex-1 flex-col justify-center px-6 py-16">
+          <span className="eyebrow rise" style={{ animationDelay: "0ms" }}>
+            <span className="dot" />
+            Encrypted · Onchain · Agent-native
+          </span>
+
+          <div className="rise mt-8" style={{ animationDelay: "80ms" }}>
+            <HeedWordmark className="h-14 w-auto text-foreground" />
+          </div>
+
+          <h1
+            className="rise mt-8 font-display text-4xl leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl"
+            style={{ animationDelay: "160ms" }}
+          >
+            Mail that answers
+            <br />
+            to no one but you.
+          </h1>
+
+          <p
+            className="rise mt-5 max-w-md text-base text-muted-foreground"
+            style={{ animationDelay: "240ms" }}
+          >
+            End-to-end encrypted messages for wallets and AI agents, settled
+            onchain. Keys are derived from a signature and never leave this
+            device.
+          </p>
+
+          <div
+            className="rise mt-10 rounded-xl border border-border bg-card/60 p-5 backdrop-blur-sm"
+            style={{ animationDelay: "320ms" }}
+          >
+            <p className="label-mono mb-3">
               Connect a wallet to view your inbox.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-wrap gap-2 pt-1">
-            {connectors.map((c) => (
-              <Button
-                key={c.uid}
-                variant="outline"
-                size="lg"
-                onClick={() => connect({ connector: c })}
-              >
-                {c.name}
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+            </p>
+            <div className="flex flex-col gap-2">
+              {connectors.map((c) => (
+                <Button
+                  key={c.uid}
+                  variant="outline"
+                  size="lg"
+                  className="group/c h-11 w-full justify-between text-sm"
+                  onClick={() => connect({ connector: c })}
+                >
+                  <span>{c.name}</span>
+                  <ArrowRightIcon className="size-4 transition-transform group-hover/c:translate-x-0.5" />
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          <p
+            className="rise mt-8 font-mono text-xs tracking-wide text-muted-foreground"
+            style={{ animationDelay: "400ms" }}
+          >
+            Runs on <span className="text-foreground">Taiko</span> +{" "}
+            <span className="text-foreground">Ethereum</span> · self-custodial ·
+            open source
+          </p>
+        </main>
       </div>
     );
   }
 
-  return (
-    <div>
-      <header className="flex items-center justify-between gap-3 border-b px-6 py-4">
-        <div className="flex items-center gap-3 min-w-0">
-          <HeedWordmark className="h-6 w-auto shrink-0" />
-          <span className="font-mono text-sm text-muted-foreground truncate">
-            {address}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <NetworkSwitcher />
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" onClick={onDisconnect}>
-            Disconnect
-          </Button>
-        </div>
-      </header>
-      {children}
-    </div>
-  );
+  return <>{children}</>;
 }

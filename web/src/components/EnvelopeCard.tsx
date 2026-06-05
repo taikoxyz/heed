@@ -1,6 +1,12 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import {
+  BadgeCheckIcon,
+  CheckIcon,
+  ShieldAlertIcon,
+  ExternalLinkIcon,
+} from "lucide-react";
+import {
   recoverEnvelopeSigner,
   type Envelope,
   type MailEvent,
@@ -77,22 +83,22 @@ export function EnvelopeCard({
 
   const signerLabel =
     signerCheck === "match"
-      ? "✓ signature matches sender"
+      ? "signature matches sender"
       : signerCheck === "mismatch"
-        ? "⚠ signer does not match sender wallet"
+        ? "signer does not match sender wallet"
         : signerCheck === "error"
-          ? "⚠ signature could not be verified"
+          ? "signature could not be verified"
           : "verifying signature…";
 
   return (
-    <article className="space-y-2">
-      <header className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-        <span className="font-semibold text-base">
+    <article className="space-y-2.5">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-base font-semibold">
           {envelope.from.name || mailSenderShort(mail)}
         </span>
         {envelope.from.owner_url && (
           <a
-            className="text-xs text-primary hover:underline"
+            className="text-xs text-signal hover:underline"
             href={envelope.from.owner_url}
             target="_blank"
             rel="noreferrer noopener"
@@ -104,8 +110,9 @@ export function EnvelopeCard({
           <Badge
             variant={identity.verified ? "secondary" : "outline"}
             title={identity.description ?? identity.raw}
+            className="gap-1 font-mono font-normal"
           >
-            {identity.verified ? "✓ " : "○ "}
+            {identity.verified ? <BadgeCheckIcon className="size-3" /> : null}
             {identity.source === "erc8004"
               ? "erc-8004"
               : identity.source === "https"
@@ -119,48 +126,53 @@ export function EnvelopeCard({
         </Badge>
       </header>
 
-      <h3 className="font-heading text-2xl font-semibold tracking-tight leading-tight">
+      <h3 className="font-display text-2xl leading-tight font-medium tracking-tight">
         {envelope.title}
       </h3>
 
-      <pre className="text-base text-foreground whitespace-pre-wrap font-sans leading-relaxed">
+      <pre className="font-sans text-[0.95rem] leading-relaxed whitespace-pre-wrap text-foreground">
         {envelope.body}
       </pre>
 
       {envelope.action_url && (
-        <Button asChild size="sm">
+        <Button asChild size="sm" className="gap-1.5">
           <a
             href={envelope.action_url}
             target="_blank"
             rel="noreferrer noopener"
           >
-            {hostnameOf(envelope.action_url)} →
+            {hostnameOf(envelope.action_url)}
+            <ExternalLinkIcon className="size-3.5" />
           </a>
         </Button>
       )}
 
-      <Separator />
+      <Separator className="my-1" />
 
-      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground pt-1">
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 font-mono text-xs text-muted-foreground">
         <span>sent {formatTimestamp(envelope.sent_at)}</span>
-        <span title={mail.sender} className="font-mono">
-          from {mailSenderShort(mail)}
-        </span>
+        <span title={mail.sender}>from {mailSenderShort(mail)}</span>
         <span>fee {mail.valueGwei} gwei</span>
         {envelope.reply_to && (
-          <span title={envelope.reply_to} className="font-mono">
+          <span title={envelope.reply_to}>
             in reply to {envelope.reply_to.slice(0, 10)}…
           </span>
         )}
         <span
           className={
-            signerCheck === "match"
-              ? "text-emerald-600"
+            "inline-flex items-center gap-1 " +
+            (signerCheck === "match"
+              ? "text-emerald-500"
               : signerCheck === "mismatch" || signerCheck === "error"
                 ? "text-destructive"
-                : ""
+                : "")
           }
         >
+          {signerCheck === "match" ? (
+            <CheckIcon className="size-3" />
+          ) : signerCheck === "mismatch" || signerCheck === "error" ? (
+            <ShieldAlertIcon className="size-3" />
+          ) : null}
           {signerLabel}
         </span>
       </footer>

@@ -17,10 +17,10 @@ export function NetworkGuard() {
   const fallback = NETWORKS[DEFAULT_CHAIN_ID]!;
 
   return (
-    <Alert variant="destructive" className="mb-4">
+    <Alert variant="destructive" className="mb-6">
       <TriangleAlertIcon />
       <AlertTitle>Unsupported network</AlertTitle>
-      <AlertDescription className="flex flex-wrap items-center gap-2">
+      <AlertDescription className="flex flex-wrap items-center gap-3">
         <span>
           Heed runs on Taiko and Ethereum. Switch your wallet to a supported
           network to continue.

@@ -23,9 +23,9 @@ export class ErrorBoundary extends Component<Props, State> {
     if (!error) return this.props.children;
     if (this.props.fallback) return this.props.fallback(error, this.reset);
     return (
-      <div className="p-4 text-sm text-red-600 space-y-1">
+      <div className="space-y-1 rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
         <div className="break-words">{error.message}</div>
-        <button onClick={this.reset} className="underline text-red-700">
+        <button onClick={this.reset} className="underline underline-offset-2">
           Try again
         </button>
       </div>

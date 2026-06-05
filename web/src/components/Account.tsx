@@ -48,7 +48,17 @@ export function Account() {
   }
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div className="space-y-5">
+      <div>
+        <span className="eyebrow">
+          <span className="dot" />
+          Identity
+        </span>
+        <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+          Account
+        </h1>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle>Encryption key</CardTitle>
@@ -60,17 +70,19 @@ export function Account() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="flex items-center gap-2 text-sm">
-            <span className="text-muted-foreground">Status:</span>
+            <span className="label-mono">Status</span>
             {isLoading ? (
               <Badge variant="secondary">loading…</Badge>
             ) : hasKey ? (
-              <Badge>published (nonce {currentNonce})</Badge>
+              <Badge className="bg-signal/15 text-signal">
+                published (nonce {currentNonce})
+              </Badge>
             ) : (
               <Badge variant="destructive">not published</Badge>
             )}
           </div>
           {hasKey && (
-            <p className="break-all font-mono text-xs text-muted-foreground">
+            <p className="rounded-md border border-border bg-muted/40 p-2.5 font-mono text-xs break-all text-muted-foreground">
               {currentKey!.pub}
             </p>
           )}
@@ -102,13 +114,15 @@ export function Account() {
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="text-sm">
-            <span className="text-muted-foreground">Current: </span>
+            <span className="label-mono mr-2">Current</span>
             <span className="font-mono">
               {isLoading ? "…" : `${Number(inbox?.feeGwei ?? 0)} gwei`}
             </span>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="account-fee">New fee (gwei)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="account-fee" className="label-mono">
+              New fee (gwei)
+            </Label>
             <Input
               id="account-fee"
               type="number"
@@ -147,8 +161,10 @@ export function Account() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label htmlFor="account-trust">Address</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="account-trust" className="label-mono">
+              Address
+            </Label>
             <Input
               id="account-trust"
               value={trustAddr}

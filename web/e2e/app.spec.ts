@@ -43,7 +43,7 @@ test.describe("connected app shell", () => {
       .getByPlaceholder("https://rpc.mainnet.taiko.xyz")
       .fill("https://custom.rpc.example");
     await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Saved.")).toBeVisible();
+    await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   });
 });
 

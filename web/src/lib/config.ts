@@ -22,13 +22,21 @@ export interface NetworkConfig {
   explorer: string;
 }
 
+// Public RPC fallbacks per chain. Kept literal (not env-overridable) so the
+// Settings UI can show users a stable "if you leave this blank we'll use X"
+// hint and so e2e tests can pin the placeholder.
+export const PUBLIC_RPC: Record<number, string> = {
+  [taiko.id]: "https://rpc.mainnet.taiko.xyz",
+  [mainnet.id]: "https://ethereum-rpc.publicnode.com",
+};
+
 export const NETWORKS: Record<number, NetworkConfig> = {
   [taiko.id]: {
     chain: taiko,
     chainId: taiko.id,
     label: "Taiko",
     contractAddress: HEED_CONTRACT,
-    rpcUrl: import.meta.env.VITE_TAIKO_RPC ?? "https://rpc.mainnet.taiko.xyz",
+    rpcUrl: import.meta.env.VITE_TAIKO_RPC ?? PUBLIC_RPC[taiko.id]!,
     deployedAtBlock: BigInt(
       import.meta.env.VITE_DEPLOYED_AT_BLOCK ?? "7500287",
     ),
@@ -39,8 +47,7 @@ export const NETWORKS: Record<number, NetworkConfig> = {
     chainId: mainnet.id,
     label: "Ethereum",
     contractAddress: HEED_CONTRACT,
-    rpcUrl:
-      import.meta.env.VITE_ETH_RPC ?? "https://ethereum-rpc.publicnode.com",
+    rpcUrl: import.meta.env.VITE_ETH_RPC ?? PUBLIC_RPC[mainnet.id]!,
     deployedAtBlock: BigInt(
       import.meta.env.VITE_ETH_DEPLOYED_AT_BLOCK ?? "25240881",
     ),

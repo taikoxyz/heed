@@ -4,6 +4,7 @@ import { createReadClient } from "@heed/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
 import { toast } from "sonner";
+import { SendIcon } from "lucide-react";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
 import { useCompose } from "../lib/composeDraft";
 import { getEffectiveConfig } from "../lib/settings";
@@ -105,12 +106,10 @@ export function Compose() {
     encrypted: boolean;
   } | null>(null);
 
-  // Consume the one-shot draft so a later manual visit starts blank.
   useEffect(() => {
     clearDraft();
   }, [clearDraft]);
 
-  // Restore a persisted draft, but only when there's no one-shot reply prefill.
   useEffect(() => {
     if (seeded.current || hadContextDraft.current || !account) return;
     seeded.current = true;
@@ -124,7 +123,6 @@ export function Compose() {
     });
   }, [account, cfg.chainId]);
 
-  // Auto-save the draft (debounced) so it survives a page reload.
   useEffect(() => {
     if (!account) return;
     const handle = setTimeout(() => {
@@ -240,100 +238,125 @@ export function Compose() {
     }
   }
 
+  const monoInput = "font-mono text-sm";
+
   return (
-    <Card className="max-w-2xl">
-      <CardHeader>
-        <CardTitle>Compose</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="compose-to">To (one or more addresses)</Label>
-          <Input
-            id="compose-to"
-            type="text"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-            onBlur={refreshPreview}
-            placeholder="0x… , 0x…"
-            className="font-mono"
-          />
-        </div>
+    <div className="space-y-5">
+      <div>
+        <span className="eyebrow">
+          <span className="dot" />
+          New message
+        </span>
+        <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+          Compose
+        </h1>
+      </div>
 
-        <div className="space-y-1">
-          <Label htmlFor="compose-cc">Cc (optional)</Label>
-          <Input
-            id="compose-cc"
-            type="text"
-            value={cc}
-            onChange={(e) => setCc(e.target.value)}
-            onBlur={refreshPreview}
-            placeholder="0x… , 0x…"
-            className="font-mono"
-          />
-        </div>
-
-        {hint && (
-          <p
-            className={`text-xs ${
-              preview && !preview.encrypted
-                ? "text-amber-600"
-                : "text-muted-foreground"
-            }`}
-          >
-            {hint}
-          </p>
-        )}
-
-        <div className="space-y-1">
-          <Label htmlFor="compose-subject">Subject</Label>
-          <Input
-            id="compose-subject"
-            type="text"
-            value={subject}
-            onChange={(e) => setSubject(e.target.value)}
-          />
-        </div>
-
-        <div className="space-y-1">
-          <Label htmlFor="compose-body">Body</Label>
-          <Textarea
-            id="compose-body"
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            rows={8}
-          />
-        </div>
-
-        <div className="flex items-center gap-3 pt-1">
-          <Button onClick={onSend} disabled={busy}>
-            {busy ? "Sending…" : "Send"}
-          </Button>
-          {stage && (
-            <span className="text-sm text-muted-foreground">
-              {STAGE_LABEL[stage]}
-            </span>
-          )}
-        </div>
-
-        {result && (
-          <div className="space-y-1 text-sm">
-            <div className="break-all">
-              tx: <code className="text-xs">{result.txHash}</code>
-            </div>
-            <div className="break-all">
-              cid: <code className="text-xs">{result.cid}</code>
-            </div>
-            <a
-              className="text-xs text-primary underline"
-              href={`${cfg.explorer}/tx/${result.txHash}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              View on {cfg.label} explorer ↗
-            </a>
+      <Card>
+        <CardHeader className="sr-only">
+          <CardTitle>Compose</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-to" className="label-mono">
+              To (one or more addresses)
+            </Label>
+            <Input
+              id="compose-to"
+              type="text"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              onBlur={refreshPreview}
+              placeholder="0x… , 0x…"
+              className={monoInput}
+            />
           </div>
-        )}
-      </CardContent>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-cc" className="label-mono">
+              Cc (optional)
+            </Label>
+            <Input
+              id="compose-cc"
+              type="text"
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              onBlur={refreshPreview}
+              placeholder="0x… , 0x…"
+              className={monoInput}
+            />
+          </div>
+
+          {hint && (
+            <p
+              className={`font-mono text-xs ${
+                preview && !preview.encrypted
+                  ? "text-amber-500"
+                  : "text-muted-foreground"
+              }`}
+            >
+              {hint}
+            </p>
+          )}
+
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-subject" className="label-mono">
+              Subject
+            </Label>
+            <Input
+              id="compose-subject"
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-body" className="label-mono">
+              Body
+            </Label>
+            <Textarea
+              id="compose-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={9}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <Button onClick={onSend} disabled={busy} className="gap-1.5">
+              <SendIcon className="size-4" />
+              {busy ? "Sending…" : "Send"}
+            </Button>
+            {stage && (
+              <span className="font-mono text-xs text-muted-foreground">
+                {STAGE_LABEL[stage]}
+              </span>
+            )}
+          </div>
+
+          {result && (
+            <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs">
+              <div className="break-all">
+                <span className="text-muted-foreground">tx </span>
+                {result.txHash}
+              </div>
+              <div className="break-all">
+                <span className="text-muted-foreground">cid </span>
+                {result.cid}
+              </div>
+              <a
+                className="text-signal underline-offset-2 hover:underline"
+                href={`${cfg.explorer}/tx/${result.txHash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on {cfg.label} explorer ↗
+              </a>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
         <DialogContent>
@@ -354,6 +377,6 @@ export function Compose() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </Card>
+    </div>
   );
 }

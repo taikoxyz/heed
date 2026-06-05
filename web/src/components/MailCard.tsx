@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { LockIcon } from "lucide-react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
 import { useCompose } from "../lib/composeDraft";
@@ -54,20 +55,26 @@ export function MailCard({
   const counterpartyLabel = direction === "sent" ? "to" : "from";
 
   return (
-    <Card size="sm">
-      <CardContent className="space-y-2">
+    <Card
+      size="sm"
+      className="transition-colors hover:ring-foreground/20 data-[unread=true]:ring-signal/40"
+      data-unread={read === false ? "true" : undefined}
+    >
+      <CardContent className="space-y-2.5">
         <div className="flex items-start justify-between gap-2">
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
             {read === false && (
               <span
-                className="size-2 shrink-0 rounded-full bg-primary"
+                className="size-2 shrink-0 rounded-full bg-signal shadow-[0_0_0_3px_color-mix(in_srgb,var(--signal)_22%,transparent)]"
                 aria-label="Unread"
                 title="Unread"
               />
             )}
-            <span>
-              {counterpartyLabel}{" "}
-              <span className="font-mono">{counterparty}</span>
+            <span className="truncate">
+              <span className="label-mono mr-1.5">{counterpartyLabel}</span>
+              <span className="font-mono text-foreground/90">
+                {counterparty}
+              </span>
             </span>
           </div>
           {direction === "received" && (
@@ -77,29 +84,34 @@ export function MailCard({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <Badge variant="secondary">
+          <Badge variant="secondary" className="font-mono font-normal">
             {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei
           </Badge>
-          <span>
-            ref <code>{mail.contentRef.slice(0, 10)}…</code>
+          <span className="font-mono">
+            ref{" "}
+            <code className="text-foreground/70">
+              {mail.contentRef.slice(0, 10)}…
+            </code>
           </span>
         </div>
 
         {content ? (
-          <div>{renderDecoded(content, mail)}</div>
+          <div className="pt-1">{renderDecoded(content, mail)}</div>
         ) : (
           <Button
             variant="outline"
             size="sm"
             onClick={() => open(false)}
             disabled={busy}
+            className="gap-1.5"
           >
+            <LockIcon className="size-3.5" />
             {busy ? "Decrypting…" : "Open"}
           </Button>
         )}
 
         {error && (
-          <div className="space-y-1 text-xs text-destructive">
+          <div className="space-y-1.5 text-xs text-destructive">
             <div className="break-words">{error}</div>
             <Button
               variant="destructive"
@@ -123,10 +135,8 @@ function renderDecoded(content: DecodedPayload, mail: MailEvent) {
   if (content.kind === "mail") {
     return (
       <div className="space-y-1">
-        <div className="text-xs text-muted-foreground">
-          legacy mail · {content.mail.subject}
-        </div>
-        <pre className="text-xs whitespace-pre-wrap font-sans">
+        <div className="label-mono">legacy mail · {content.mail.subject}</div>
+        <pre className="font-sans text-sm whitespace-pre-wrap text-foreground">
           {content.mail.body.text}
         </pre>
       </div>

@@ -1,14 +1,21 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import {
   clearSettings,
-  EMPTY_SETTINGS,
+  emptyNetwork,
   loadSettings,
   saveSettings,
+  type NetworkSettings,
   type Settings as SettingsT,
 } from "../lib/settings";
-import { parseGateways } from "../lib/config";
+import {
+  NETWORKS,
+  parseGateways,
+  PUBLIC_RPC,
+  SUPPORTED_CHAINS,
+} from "../lib/config";
 import {
   clearAll,
   exportAll,
@@ -22,6 +29,7 @@ import { errorMessage } from "../lib/format";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
@@ -56,6 +64,7 @@ function gatewayError(value: string): string | null {
 export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
+  const [showJwt, setShowJwt] = useState(false);
 
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -66,7 +75,25 @@ export function Settings() {
 
   const gwError = gatewayError(draft.ipfsGateway);
 
-  function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
+  function updateNetwork<K extends keyof NetworkSettings>(
+    chainId: number,
+    key: K,
+    value: NetworkSettings[K],
+  ) {
+    setDraft((d) => ({
+      ...d,
+      networks: {
+        ...d.networks,
+        [chainId]: { ...(d.networks[chainId] ?? emptyNetwork()), [key]: value },
+      },
+    }));
+    setSaved(false);
+  }
+
+  function updateGlobal<K extends "ipfsGateway" | "pinataJwt">(
+    key: K,
+    value: SettingsT[K],
+  ) {
     setDraft((d) => ({ ...d, [key]: value }));
     setSaved(false);
   }
@@ -78,8 +105,15 @@ export function Settings() {
   }
 
   function onReset() {
-    setDraft(EMPTY_SETTINGS);
-    saveSettings(EMPTY_SETTINGS);
+    const empty: SettingsT = {
+      networks: Object.fromEntries(
+        SUPPORTED_CHAINS.map((c) => [c.id, emptyNetwork()]),
+      ),
+      ipfsGateway: "",
+      pinataJwt: "",
+    };
+    setDraft(empty);
+    saveSettings(empty);
     setSaved(true);
   }
 
@@ -92,7 +126,7 @@ export function Settings() {
 
   function onClearAll() {
     clearSettings();
-    setDraft(EMPTY_SETTINGS);
+    setDraft(loadSettings());
     setSaved(true);
   }
 
@@ -128,7 +162,7 @@ export function Settings() {
     if (!importData) return;
     try {
       await importAll(importData, mode);
-      setDraft(importData.settings);
+      setDraft(loadSettings());
       await qc.invalidateQueries();
       setImportOpen(false);
       setImportData(null);
@@ -150,37 +184,148 @@ export function Settings() {
   }
 
   return (
-    <div className="max-w-xl space-y-4">
+    <div className="space-y-5">
+      <div>
+        <span className="eyebrow">
+          <span className="dot" />
+          Configuration
+        </span>
+        <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+          Settings
+        </h1>
+      </div>
+
       <Card>
         <CardHeader>
-          <CardTitle>Settings</CardTitle>
+          <CardTitle>Networks</CardTitle>
           <CardDescription>
-            Empty fields fall back to the build-time defaults. Saved to
-            localStorage on this device only.
+            Per-network RPC, indexer and anti-spam limits. Empty fields fall
+            back to a public node, so Heed still works without any
+            configuration.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {SUPPORTED_CHAINS.map((chain, i) => {
+            const net = NETWORKS[chain.id]!;
+            const entry = draft.networks[chain.id] ?? emptyNetwork();
+            const usingPublicRpc = entry.rpcUrl.trim() === "";
+            return (
+              <div key={chain.id} className="space-y-3">
+                {i > 0 && <Separator />}
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-display text-lg font-medium">
+                    {net.label}
+                  </h3>
+                  <span className="label-mono">chainId {chain.id}</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-rpc-${chain.id}`}
+                    className="label-mono"
+                  >
+                    {net.label} RPC URL
+                  </Label>
+                  <Input
+                    id={`settings-rpc-${chain.id}`}
+                    type="text"
+                    value={entry.rpcUrl}
+                    onChange={(e) =>
+                      updateNetwork(chain.id, "rpcUrl", e.target.value)
+                    }
+                    placeholder={PUBLIC_RPC[chain.id]!}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {usingPublicRpc ? (
+                      <>
+                        Using public node{" "}
+                        <code className="text-foreground/70">{net.rpcUrl}</code>
+                        . Public endpoints rate-limit aggressively — set your
+                        own for reliable inbox/send.
+                      </>
+                    ) : (
+                      "Custom RPC — used for inbox scans, sends, and key actions on this network."
+                    )}
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-indexer-${chain.id}`}
+                    className="label-mono"
+                  >
+                    {net.label} indexer URL
+                  </Label>
+                  <Input
+                    id={`settings-indexer-${chain.id}`}
+                    type="text"
+                    value={entry.indexerUrl}
+                    onChange={(e) =>
+                      updateNetwork(chain.id, "indexerUrl", e.target.value)
+                    }
+                    placeholder="(unset → falls back to RPC log scan)"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A GraphQL indexer speeds up inbox loading. When empty, Heed
+                    scans logs over RPC instead (slower but always works).
+                  </p>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-fee-${chain.id}`}
+                    className="label-mono"
+                  >
+                    Max anti-spam fee on {net.label} (gwei)
+                  </Label>
+                  <Input
+                    id={`settings-fee-${chain.id}`}
+                    type="number"
+                    min={0}
+                    value={entry.maxFeeGwei || ""}
+                    onChange={(e) =>
+                      updateNetwork(
+                        chain.id,
+                        "maxFeeGwei",
+                        Number(e.target.value) || 0,
+                      )
+                    }
+                    placeholder="0"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Send will refuse recipients charging more than this. 0 means
+                    no cap.
+                  </p>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>IPFS &amp; pinning</CardTitle>
+          <CardDescription>
+            Chain-independent. IPFS is content-addressed, so the same gateway
+            and pinning service work for every network.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
-          <div className="space-y-1">
-            <Label htmlFor="settings-rpc">Taiko RPC URL</Label>
-            <Input
-              id="settings-rpc"
-              type="text"
-              value={draft.rpcUrl}
-              onChange={(e) => update("rpcUrl", e.target.value)}
-              placeholder="https://rpc.mainnet.taiko.xyz"
-              className="font-mono"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="settings-ipfs">IPFS gateway(s)</Label>
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-ipfs" className="label-mono">
+              IPFS gateway(s)
+            </Label>
             <Input
               id="settings-ipfs"
               type="text"
               value={draft.ipfsGateway}
-              onChange={(e) => update("ipfsGateway", e.target.value)}
+              onChange={(e) => updateGlobal("ipfsGateway", e.target.value)}
               placeholder="https://gateway.pinata.cloud,https://ipfs.io"
-              className="font-mono"
+              className="font-mono text-sm"
             />
             <p className="text-xs text-muted-foreground">
               Comma-separated list, tried in order with fallback on failure.
@@ -188,44 +333,33 @@ export function Settings() {
             {gwError && <p className="text-xs text-destructive">{gwError}</p>}
           </div>
 
-          <div className="space-y-1">
-            <Label htmlFor="settings-indexer">Indexer URL</Label>
-            <Input
-              id="settings-indexer"
-              type="text"
-              value={draft.indexerUrl}
-              onChange={(e) => update("indexerUrl", e.target.value)}
-              placeholder="(unset → falls back to RPC log scan)"
-              className="font-mono"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="settings-fee">Max anti-spam fee (gwei)</Label>
-            <Input
-              id="settings-fee"
-              type="number"
-              min={0}
-              value={draft.maxFeeGwei || ""}
-              onChange={(e) =>
-                update("maxFeeGwei", Number(e.target.value) || 0)
-              }
-              placeholder="0"
-              className="font-mono"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <Label htmlFor="settings-pinata">Pinata JWT</Label>
-            <Input
-              id="settings-pinata"
-              type="password"
-              value={draft.pinataJwt}
-              onChange={(e) => update("pinataJwt", e.target.value)}
-              placeholder="(required to send mail)"
-              className="font-mono"
-              autoComplete="off"
-            />
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-pinata" className="label-mono">
+              Pinata JWT
+            </Label>
+            <div className="relative">
+              <Input
+                id="settings-pinata"
+                type={showJwt ? "text" : "password"}
+                value={draft.pinataJwt}
+                onChange={(e) => updateGlobal("pinataJwt", e.target.value)}
+                placeholder="(required to send mail)"
+                className="pr-9 font-mono text-sm"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowJwt((s) => !s)}
+                aria-label={showJwt ? "Hide JWT" : "Show JWT"}
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showJwt ? (
+                  <EyeOffIcon className="size-4" />
+                ) : (
+                  <EyeIcon className="size-4" />
+                )}
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground">
               Used to pin encrypted mail to IPFS. Generate a scoped
               "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
@@ -240,7 +374,7 @@ export function Settings() {
                   href="https://github.com/dantaik/heed/blob/main/SECURITY.md"
                   target="_blank"
                   rel="noreferrer"
-                  className="underline"
+                  className="underline underline-offset-2"
                 >
                   SECURITY.md
                 </a>
@@ -253,21 +387,21 @@ export function Settings() {
               </Button>
             )}
           </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1">
-            <Button onClick={onSave} disabled={!!gwError}>
-              Save
-            </Button>
-            <Button variant="outline" onClick={onReset}>
-              Reset
-            </Button>
-            <Button variant="ghost" onClick={onClearAll}>
-              Clear all settings
-            </Button>
-            {saved && <span className="text-sm text-emerald-600">Saved.</span>}
-          </div>
         </CardContent>
       </Card>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <Button onClick={onSave} disabled={!!gwError}>
+          Save
+        </Button>
+        <Button variant="outline" onClick={onReset}>
+          Reset
+        </Button>
+        <Button variant="ghost" onClick={onClearAll}>
+          Clear all settings
+        </Button>
+        {saved && <span className="font-mono text-xs text-signal">Saved</span>}
+      </div>
 
       <Card>
         <CardHeader>
