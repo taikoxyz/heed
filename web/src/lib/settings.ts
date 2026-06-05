@@ -27,7 +27,7 @@ export interface Settings {
 
 const KEY = "heed:settings";
 
-function emptyNetwork(): NetworkSettings {
+export function emptyNetwork(): NetworkSettings {
   return { rpcUrl: "", indexerUrl: "", maxFeeGwei: 0 };
 }
 

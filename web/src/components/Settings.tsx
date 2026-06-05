@@ -18,6 +18,7 @@ import {
 import { notifications } from "@mantine/notifications";
 import {
   clearSettings,
+  emptyNetwork,
   loadSettings,
   saveSettings,
   type NetworkSettings,
@@ -82,11 +83,7 @@ export function Settings() {
       networks: {
         ...d.networks,
         [chainId]: {
-          ...(d.networks[chainId] ?? {
-            rpcUrl: "",
-            indexerUrl: "",
-            maxFeeGwei: 0,
-          }),
+          ...(d.networks[chainId] ?? emptyNetwork()),
           [key]: value,
         },
       },
@@ -111,10 +108,7 @@ export function Settings() {
   function onReset() {
     const empty: SettingsT = {
       networks: Object.fromEntries(
-        SUPPORTED_CHAINS.map((c) => [
-          c.id,
-          { rpcUrl: "", indexerUrl: "", maxFeeGwei: 0 },
-        ]),
+        SUPPORTED_CHAINS.map((c) => [c.id, emptyNetwork()]),
       ),
       ipfsGateway: "",
       pinataJwt: "",
@@ -206,11 +200,7 @@ export function Settings() {
 
           {SUPPORTED_CHAINS.map((chain, i) => {
             const net = NETWORKS[chain.id]!;
-            const entry = draft.networks[chain.id] ?? {
-              rpcUrl: "",
-              indexerUrl: "",
-              maxFeeGwei: 0,
-            };
+            const entry = draft.networks[chain.id] ?? emptyNetwork();
             const usingPublicRpc = entry.rpcUrl.trim() === "";
             // Stable placeholder (not env-overridable) so users always see the
             // canonical public URL; the effective fallback (which may be a
