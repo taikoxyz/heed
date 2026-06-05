@@ -3,20 +3,8 @@ import { createPublicClient, http, isAddress, type Address } from "viem";
 import { createReadClient } from "@heed/core";
 import { useQueryClient } from "@tanstack/react-query";
 import { useAccount } from "wagmi";
-import {
-  Anchor,
-  Button,
-  Card,
-  Code,
-  Group,
-  Modal,
-  Stack,
-  Text,
-  TextInput,
-  Textarea,
-  Title,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { toast } from "sonner";
+import { SendIcon } from "lucide-react";
 import { useSendMail, type SendStage } from "../hooks/useSendMail";
 import { useCompose } from "../lib/composeDraft";
 import { getEffectiveConfig } from "../lib/settings";
@@ -26,6 +14,19 @@ import {
   saveDraft as saveDbDraft,
 } from "../lib/db";
 import { errorMessage } from "../lib/format";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const STAGE_LABEL: Record<SendStage, string> = {
   lookup: "Looking up recipients…",
@@ -193,10 +194,7 @@ export function Compose() {
       return;
     }
     if (!subject.trim() && !body.trim()) {
-      notifications.show({
-        color: "red",
-        message: "subject or body must be non-empty",
-      });
+      toast.error("subject or body must be non-empty");
       return;
     }
     const encrypted = preview ? preview.encrypted : await refreshPreview();
@@ -228,126 +226,157 @@ export function Compose() {
       setBody("");
       setPreview(null);
       if (account) void clearDbDraft(cfg.chainId, account).catch(() => {});
-      notifications.show({
-        color: "teal",
-        message: `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
-      });
+      toast.success(
+        `Sent to ${r.recipients.length} recipient(s) ${r.encrypted ? "(encrypted)" : "(plaintext)"}.`,
+      );
       await qc.invalidateQueries({ queryKey: ["outbox"] });
     } catch (e) {
-      notifications.show({ color: "red", message: errorMessage(e) });
+      toast.error(errorMessage(e));
     } finally {
       setBusy(false);
       setStage(null);
     }
   }
 
+  const monoInput = "font-mono text-sm";
+
   return (
-    <Card withBorder maw={720} padding="lg" radius="md">
-      <Stack gap="md">
-        <Title order={2}>Compose</Title>
+    <div className="space-y-5">
+      <div>
+        <span className="eyebrow">
+          <span className="dot" />
+          New message
+        </span>
+        <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+          Compose
+        </h1>
+      </div>
 
-        <TextInput
-          id="compose-to"
-          label="To (one or more addresses)"
-          value={to}
-          onChange={(e) => setTo(e.currentTarget.value)}
-          onBlur={refreshPreview}
-          placeholder="0x… , 0x…"
-          styles={{
-            input: { fontFamily: "var(--mantine-font-family-monospace)" },
-          }}
-        />
+      <Card>
+        <CardHeader className="sr-only">
+          <CardTitle>Compose</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-to" className="label-mono">
+              To (one or more addresses)
+            </Label>
+            <Input
+              id="compose-to"
+              type="text"
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              onBlur={refreshPreview}
+              placeholder="0x… , 0x…"
+              className={monoInput}
+            />
+          </div>
 
-        <TextInput
-          id="compose-cc"
-          label="Cc (optional)"
-          value={cc}
-          onChange={(e) => setCc(e.currentTarget.value)}
-          onBlur={refreshPreview}
-          placeholder="0x… , 0x…"
-          styles={{
-            input: { fontFamily: "var(--mantine-font-family-monospace)" },
-          }}
-        />
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-cc" className="label-mono">
+              Cc (optional)
+            </Label>
+            <Input
+              id="compose-cc"
+              type="text"
+              value={cc}
+              onChange={(e) => setCc(e.target.value)}
+              onBlur={refreshPreview}
+              placeholder="0x… , 0x…"
+              className={monoInput}
+            />
+          </div>
 
-        {hint && (
-          <Text
-            size="xs"
-            c={preview && !preview.encrypted ? "yellow" : "dimmed"}
-          >
-            {hint}
-          </Text>
-        )}
-
-        <TextInput
-          id="compose-subject"
-          label="Subject"
-          value={subject}
-          onChange={(e) => setSubject(e.currentTarget.value)}
-        />
-
-        <Textarea
-          id="compose-body"
-          label="Body"
-          value={body}
-          onChange={(e) => setBody(e.currentTarget.value)}
-          rows={8}
-          autosize
-          minRows={8}
-        />
-
-        <Group gap="md" align="center">
-          <Button onClick={onSend} loading={busy} disabled={busy}>
-            {busy ? "Sending…" : "Send"}
-          </Button>
-          {stage && (
-            <Text size="sm" c="dimmed">
-              {STAGE_LABEL[stage]}
-            </Text>
-          )}
-        </Group>
-
-        {result && (
-          <Stack gap={4}>
-            <Text size="sm" style={{ wordBreak: "break-all" }}>
-              tx: <Code fz="xs">{result.txHash}</Code>
-            </Text>
-            <Text size="sm" style={{ wordBreak: "break-all" }}>
-              cid: <Code fz="xs">{result.cid}</Code>
-            </Text>
-            <Anchor
-              size="xs"
-              href={`${cfg.explorer}/tx/${result.txHash}`}
-              target="_blank"
-              rel="noreferrer"
+          {hint && (
+            <p
+              className={`font-mono text-xs ${
+                preview && !preview.encrypted
+                  ? "text-amber-500"
+                  : "text-muted-foreground"
+              }`}
             >
-              View on {cfg.label} explorer ↗
-            </Anchor>
-          </Stack>
-        )}
-      </Stack>
+              {hint}
+            </p>
+          )}
 
-      <Modal
-        opened={confirmOpen}
-        onClose={() => setConfirmOpen(false)}
-        title="Send as plaintext?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            One or more recipients have not published an encryption key. This
-            message will be stored unencrypted on IPFS and anyone can read it.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="subtle" onClick={() => setConfirmOpen(false)}>
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-subject" className="label-mono">
+              Subject
+            </Label>
+            <Input
+              id="compose-subject"
+              type="text"
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="compose-body" className="label-mono">
+              Body
+            </Label>
+            <Textarea
+              id="compose-body"
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={9}
+            />
+          </div>
+
+          <div className="flex items-center gap-3 pt-1">
+            <Button onClick={onSend} disabled={busy} className="gap-1.5">
+              <SendIcon className="size-4" />
+              {busy ? "Sending…" : "Send"}
+            </Button>
+            {stage && (
+              <span className="font-mono text-xs text-muted-foreground">
+                {STAGE_LABEL[stage]}
+              </span>
+            )}
+          </div>
+
+          {result && (
+            <div className="space-y-1 rounded-lg border border-border bg-muted/40 p-3 font-mono text-xs">
+              <div className="break-all">
+                <span className="text-muted-foreground">tx </span>
+                {result.txHash}
+              </div>
+              <div className="break-all">
+                <span className="text-muted-foreground">cid </span>
+                {result.cid}
+              </div>
+              <a
+                className="text-signal underline-offset-2 hover:underline"
+                href={`${cfg.explorer}/tx/${result.txHash}`}
+                target="_blank"
+                rel="noreferrer"
+              >
+                View on {cfg.label} explorer ↗
+              </a>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Send as plaintext?</DialogTitle>
+            <DialogDescription>
+              One or more recipients have not published an encryption key. This
+              message will be stored unencrypted on IPFS and anyone can read it.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setConfirmOpen(false)}>
               Cancel
             </Button>
-            <Button color="red" onClick={doSend}>
+            <Button variant="destructive" onClick={doSend}>
               Send plaintext
             </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Card>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

@@ -1,21 +1,7 @@
 import { useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  Anchor,
-  Button,
-  Card,
-  Code,
-  Divider,
-  Group,
-  Modal,
-  NumberInput,
-  PasswordInput,
-  Stack,
-  Text,
-  TextInput,
-  Title,
-} from "@mantine/core";
-import { notifications } from "@mantine/notifications";
+import { toast } from "sonner";
+import { EyeIcon, EyeOffIcon } from "lucide-react";
 import {
   clearSettings,
   emptyNetwork,
@@ -40,6 +26,25 @@ import {
   type HeedExport,
 } from "../lib/db";
 import { errorMessage } from "../lib/format";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function gatewayError(value: string): string | null {
   if (!value.trim()) return null;
@@ -56,13 +61,10 @@ function gatewayError(value: string): string | null {
   return null;
 }
 
-const monoInputStyles = {
-  input: { fontFamily: "var(--mantine-font-family-monospace)" },
-};
-
 export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
+  const [showJwt, setShowJwt] = useState(false);
 
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
@@ -82,10 +84,7 @@ export function Settings() {
       ...d,
       networks: {
         ...d.networks,
-        [chainId]: {
-          ...(d.networks[chainId] ?? emptyNetwork()),
-          [key]: value,
-        },
+        [chainId]: { ...(d.networks[chainId] ?? emptyNetwork()), [key]: value },
       },
     }));
     setSaved(false);
@@ -141,9 +140,9 @@ export function Settings() {
         `heed-export-${stamp}.zip`,
       );
       setExportOpen(false);
-      notifications.show({ color: "teal", message: "Backup downloaded." });
+      toast.success("Backup downloaded.");
     } catch (e) {
-      notifications.show({ color: "red", message: errorMessage(e) });
+      toast.error(errorMessage(e));
     }
   }
 
@@ -155,7 +154,7 @@ export function Settings() {
       setImportData(await parseImportFile(file));
       setImportOpen(true);
     } catch (err) {
-      notifications.show({ color: "red", message: errorMessage(err) });
+      toast.error(errorMessage(err));
     }
   }
 
@@ -163,14 +162,13 @@ export function Settings() {
     if (!importData) return;
     try {
       await importAll(importData, mode);
-      // Re-read so any legacy-shape settings in the backup are migrated.
       setDraft(loadSettings());
       await qc.invalidateQueries();
       setImportOpen(false);
       setImportData(null);
-      notifications.show({ color: "teal", message: "Backup restored." });
+      toast.success("Backup restored.");
     } catch (e) {
-      notifications.show({ color: "red", message: errorMessage(e) });
+      toast.error(errorMessage(e));
     }
   }
 
@@ -179,279 +177,327 @@ export function Settings() {
       await clearAll();
       await qc.invalidateQueries();
       setResetOpen(false);
-      notifications.show({ color: "teal", message: "Local store cleared." });
+      toast.success("Local store cleared.");
     } catch (e) {
-      notifications.show({ color: "red", message: errorMessage(e) });
+      toast.error(errorMessage(e));
     }
   }
 
   return (
-    <Stack gap="md" maw={680}>
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Stack gap={4}>
-            <Title order={2}>Networks</Title>
-            <Text size="sm" c="dimmed">
-              Per-network RPC, indexer and anti-spam limits. Empty fields fall
-              back to a public node, so Heed still works without any
-              configuration.
-            </Text>
-          </Stack>
+    <div className="space-y-5">
+      <div>
+        <span className="eyebrow">
+          <span className="dot" />
+          Configuration
+        </span>
+        <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+          Settings
+        </h1>
+      </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Networks</CardTitle>
+          <CardDescription>
+            Per-network RPC, indexer and anti-spam limits. Empty fields fall
+            back to a public node, so Heed still works without any
+            configuration.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
           {SUPPORTED_CHAINS.map((chain, i) => {
             const net = NETWORKS[chain.id]!;
             const entry = draft.networks[chain.id] ?? emptyNetwork();
             const usingPublicRpc = entry.rpcUrl.trim() === "";
-            // Stable placeholder (not env-overridable) so users always see the
-            // canonical public URL; the effective fallback (which may be a
-            // VITE_*_RPC override in dev/e2e) shows up in the description.
-            const placeholder = PUBLIC_RPC[chain.id]!;
             return (
-              <Stack gap="sm" key={chain.id}>
-                {i > 0 && <Divider />}
-                <Group gap="xs" align="baseline">
-                  <Title order={4} m={0}>
+              <div key={chain.id} className="space-y-3">
+                {i > 0 && <Separator />}
+                <div className="flex items-baseline gap-2">
+                  <h3 className="font-display text-lg font-medium">
                     {net.label}
-                  </Title>
-                  <Text size="xs" c="dimmed">
-                    chainId {chain.id}
-                  </Text>
-                </Group>
+                  </h3>
+                  <span className="label-mono">chainId {chain.id}</span>
+                </div>
 
-                <TextInput
-                  id={`settings-rpc-${chain.id}`}
-                  label={`${net.label} RPC URL`}
-                  value={entry.rpcUrl}
-                  onChange={(e) =>
-                    updateNetwork(chain.id, "rpcUrl", e.currentTarget.value)
-                  }
-                  placeholder={placeholder}
-                  description={
-                    usingPublicRpc ? (
-                      <Text size="xs" c="dimmed">
-                        Using public node <Code fz="xs">{net.rpcUrl}</Code>.
-                        Public endpoints rate-limit aggressively — set your own
-                        for reliable inbox/send.
-                      </Text>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-rpc-${chain.id}`}
+                    className="label-mono"
+                  >
+                    {net.label} RPC URL
+                  </Label>
+                  <Input
+                    id={`settings-rpc-${chain.id}`}
+                    type="text"
+                    value={entry.rpcUrl}
+                    onChange={(e) =>
+                      updateNetwork(chain.id, "rpcUrl", e.target.value)
+                    }
+                    placeholder={PUBLIC_RPC[chain.id]!}
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    {usingPublicRpc ? (
+                      <>
+                        Using public node{" "}
+                        <code className="text-foreground/70">{net.rpcUrl}</code>
+                        . Public endpoints rate-limit aggressively — set your
+                        own for reliable inbox/send.
+                      </>
                     ) : (
                       "Custom RPC — used for inbox scans, sends, and key actions on this network."
-                    )
-                  }
-                  styles={monoInputStyles}
-                />
+                    )}
+                  </p>
+                </div>
 
-                <TextInput
-                  id={`settings-indexer-${chain.id}`}
-                  label={`${net.label} indexer URL`}
-                  value={entry.indexerUrl}
-                  onChange={(e) =>
-                    updateNetwork(chain.id, "indexerUrl", e.currentTarget.value)
-                  }
-                  placeholder="(unset → falls back to RPC log scan)"
-                  description="A GraphQL indexer speeds up inbox loading. When empty, Heed scans logs over RPC instead (slower but always works)."
-                  styles={monoInputStyles}
-                />
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-indexer-${chain.id}`}
+                    className="label-mono"
+                  >
+                    {net.label} indexer URL
+                  </Label>
+                  <Input
+                    id={`settings-indexer-${chain.id}`}
+                    type="text"
+                    value={entry.indexerUrl}
+                    onChange={(e) =>
+                      updateNetwork(chain.id, "indexerUrl", e.target.value)
+                    }
+                    placeholder="(unset → falls back to RPC log scan)"
+                    className="font-mono text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    A GraphQL indexer speeds up inbox loading. When empty, Heed
+                    scans logs over RPC instead (slower but always works).
+                  </p>
+                </div>
 
-                <NumberInput
-                  id={`settings-fee-${chain.id}`}
-                  label={`Max anti-spam fee on ${net.label} (gwei)`}
-                  min={0}
-                  value={entry.maxFeeGwei || ""}
-                  onChange={(v) =>
-                    updateNetwork(chain.id, "maxFeeGwei", Number(v) || 0)
-                  }
-                  placeholder="0"
-                  description="Send will refuse recipients charging more than this. 0 means no cap."
-                  allowDecimal={false}
-                  allowNegative={false}
-                />
-              </Stack>
+                <div className="space-y-1.5">
+                  <Label
+                    htmlFor={`settings-fee-${chain.id}`}
+                    className="label-mono"
+                  >
+                    Max anti-spam fee on {net.label} (gwei)
+                  </Label>
+                  <Input
+                    id={`settings-fee-${chain.id}`}
+                    type="number"
+                    min={0}
+                    value={entry.maxFeeGwei || ""}
+                    onChange={(e) =>
+                      updateNetwork(
+                        chain.id,
+                        "maxFeeGwei",
+                        Number(e.target.value) || 0,
+                      )
+                    }
+                    placeholder="0"
+                    className="font-mono"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Send will refuse recipients charging more than this. 0 means
+                    no cap.
+                  </p>
+                </div>
+              </div>
             );
           })}
-        </Stack>
+        </CardContent>
       </Card>
 
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Stack gap={4}>
-            <Title order={2}>IPFS &amp; pinning</Title>
-            <Text size="sm" c="dimmed">
-              Chain-independent. IPFS is content-addressed, so the same gateway
-              and pinning service work for every network.
-            </Text>
-          </Stack>
+      <Card>
+        <CardHeader>
+          <CardTitle>IPFS &amp; pinning</CardTitle>
+          <CardDescription>
+            Chain-independent. IPFS is content-addressed, so the same gateway
+            and pinning service work for every network.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-ipfs" className="label-mono">
+              IPFS gateway(s)
+            </Label>
+            <Input
+              id="settings-ipfs"
+              type="text"
+              value={draft.ipfsGateway}
+              onChange={(e) => updateGlobal("ipfsGateway", e.target.value)}
+              placeholder="https://gateway.pinata.cloud,https://ipfs.io"
+              className="font-mono text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Comma-separated list, tried in order with fallback on failure.
+            </p>
+            {gwError && <p className="text-xs text-destructive">{gwError}</p>}
+          </div>
 
-          <TextInput
-            id="settings-ipfs"
-            label="IPFS gateway(s)"
-            value={draft.ipfsGateway}
-            onChange={(e) => updateGlobal("ipfsGateway", e.currentTarget.value)}
-            placeholder="https://gateway.pinata.cloud,https://ipfs.io"
-            description="Comma-separated list, tried in order with fallback on failure."
-            error={gwError ?? undefined}
-            styles={monoInputStyles}
-          />
-
-          <PasswordInput
-            id="settings-pinata"
-            label="Pinata JWT"
-            value={draft.pinataJwt}
-            onChange={(e) => updateGlobal("pinataJwt", e.currentTarget.value)}
-            placeholder="(required to send mail)"
-            autoComplete="off"
-            description={
-              <>
-                Used to pin encrypted mail to IPFS. Generate a scoped
-                "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
-                in this browser's localStorage.
-              </>
-            }
-            styles={monoInputStyles}
-          />
-          {draft.pinataJwt && (
-            <Stack gap="xs">
-              <Text size="xs" c="red">
+          <div className="space-y-1.5">
+            <Label htmlFor="settings-pinata" className="label-mono">
+              Pinata JWT
+            </Label>
+            <div className="relative">
+              <Input
+                id="settings-pinata"
+                type={showJwt ? "text" : "password"}
+                value={draft.pinataJwt}
+                onChange={(e) => updateGlobal("pinataJwt", e.target.value)}
+                placeholder="(required to send mail)"
+                className="pr-9 font-mono text-sm"
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowJwt((s) => !s)}
+                aria-label={showJwt ? "Hide JWT" : "Show JWT"}
+                className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                {showJwt ? (
+                  <EyeOffIcon className="size-4" />
+                ) : (
+                  <EyeIcon className="size-4" />
+                )}
+              </button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Used to pin encrypted mail to IPFS. Generate a scoped
+              "pinFileToIPFS / pinJSONToIPFS" key at pinata.cloud. Stored only
+              in this browser's localStorage.
+            </p>
+            {draft.pinataJwt && (
+              <p className="text-xs text-destructive">
                 Warning: the JWT is stored UNENCRYPTED in this browser's
                 localStorage, readable by any script on this origin (e.g. via
                 XSS). Use a scoped key and clear it when done. See{" "}
-                <Anchor
+                <a
                   href="https://github.com/dantaik/heed/blob/main/SECURITY.md"
                   target="_blank"
                   rel="noreferrer"
-                  size="xs"
+                  className="underline underline-offset-2"
                 >
                   SECURITY.md
-                </Anchor>
+                </a>
                 .
-              </Text>
-              <Group>
-                <Button variant="default" size="sm" onClick={onClearJwt}>
-                  Clear JWT
-                </Button>
-              </Group>
-            </Stack>
-          )}
-        </Stack>
+              </p>
+            )}
+            {draft.pinataJwt && (
+              <Button variant="outline" size="sm" onClick={onClearJwt}>
+                Clear JWT
+              </Button>
+            )}
+          </div>
+        </CardContent>
       </Card>
 
-      <Group gap="xs" align="center">
+      <div className="flex flex-wrap items-center gap-2">
         <Button onClick={onSave} disabled={!!gwError}>
           Save
         </Button>
-        <Button variant="default" onClick={onReset}>
+        <Button variant="outline" onClick={onReset}>
           Reset
         </Button>
-        <Button variant="subtle" onClick={onClearAll}>
+        <Button variant="ghost" onClick={onClearAll}>
           Clear all settings
         </Button>
-        {saved && (
-          <Text size="sm" c="teal">
-            Saved
-          </Text>
-        )}
-      </Group>
+        {saved && <span className="font-mono text-xs text-signal">Saved</span>}
+      </div>
 
-      <Card withBorder padding="lg" radius="md">
-        <Stack gap="md">
-          <Stack gap={4}>
-            <Title order={2}>Backup &amp; restore</Title>
-            <Text size="sm" c="dimmed">
-              Export all locally cached mail, read state, drafts and settings to
-              a zip file, or restore from one.
-            </Text>
-          </Stack>
-          <Group gap="xs" align="center" wrap="wrap">
-            <Button variant="default" onClick={() => setExportOpen(true)}>
+      <Card>
+        <CardHeader>
+          <CardTitle>Backup &amp; restore</CardTitle>
+          <CardDescription>
+            Export all locally cached mail, read state, drafts and settings to a
+            zip file, or restore from one.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" onClick={() => setExportOpen(true)}>
               Export data
             </Button>
-            <Button variant="default" onClick={() => fileRef.current?.click()}>
+            <Button variant="outline" onClick={() => fileRef.current?.click()}>
               Import data
             </Button>
-            <Button variant="subtle" onClick={() => setResetOpen(true)}>
+            <Button variant="ghost" onClick={() => setResetOpen(true)}>
               Reset local store
             </Button>
             <input
               ref={fileRef}
               type="file"
               accept=".zip,.json,application/zip,application/json"
-              style={{ display: "none" }}
+              className="hidden"
               aria-label="Import backup file"
               onChange={onFile}
             />
-          </Group>
-          <Text size="xs" c="dimmed">
+          </div>
+          <p className="text-xs text-muted-foreground">
             The backup contains decrypted message content in plaintext. Keep the
             file somewhere safe.
-          </Text>
-        </Stack>
+          </p>
+        </CardContent>
       </Card>
 
-      <Modal
-        opened={exportOpen}
-        onClose={() => setExportOpen(false)}
-        title="Export your data?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            This downloads a zip file with your settings, cached mail, drafts
-            and read state — including decrypted message content in plaintext.
-            Anyone with the file can read your mail.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="subtle" onClick={() => setExportOpen(false)}>
+      <Dialog open={exportOpen} onOpenChange={setExportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Export your data?</DialogTitle>
+            <DialogDescription>
+              This downloads a zip file with your settings, cached mail, drafts
+              and read state — including decrypted message content in plaintext.
+              Anyone with the file can read your mail.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setExportOpen(false)}>
               Cancel
             </Button>
             <Button onClick={onExport}>Download backup</Button>
-          </Group>
-        </Stack>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        opened={importOpen}
-        onClose={() => setImportOpen(false)}
-        title="Restore from backup?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            Merge keeps your current data and adds the backup's. Replace wipes
-            local data first, then restores the backup exactly.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="subtle" onClick={() => setImportOpen(false)}>
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Restore from backup?</DialogTitle>
+            <DialogDescription>
+              Merge keeps your current data and adds the backup's. Replace wipes
+              local data first, then restores the backup exactly.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setImportOpen(false)}>
               Cancel
             </Button>
-            <Button color="red" onClick={() => onImport("replace")}>
+            <Button variant="destructive" onClick={() => onImport("replace")}>
               Replace
             </Button>
             <Button onClick={() => onImport("merge")}>Merge</Button>
-          </Group>
-        </Stack>
-      </Modal>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
-      <Modal
-        opened={resetOpen}
-        onClose={() => setResetOpen(false)}
-        title="Reset local store?"
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">
-            This deletes cached mail, decoded content, drafts and read state on
-            this device. Settings are kept, and on-chain mail will be re-fetched
-            from RPC/IPFS on next load.
-          </Text>
-          <Group justify="flex-end" gap="xs">
-            <Button variant="subtle" onClick={() => setResetOpen(false)}>
+      <Dialog open={resetOpen} onOpenChange={setResetOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reset local store?</DialogTitle>
+            <DialogDescription>
+              This deletes cached mail, decoded content, drafts and read state
+              on this device. Settings are kept, and on-chain mail will be
+              re-fetched from RPC/IPFS on next load.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setResetOpen(false)}>
               Cancel
             </Button>
-            <Button color="red" onClick={onResetStore}>
+            <Button variant="destructive" onClick={onResetStore}>
               Reset
             </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Stack>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
   );
 }

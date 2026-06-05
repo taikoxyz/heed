@@ -1,5 +1,11 @@
 import { useAccount, useSwitchChain } from "wagmi";
-import { Select } from "@mantine/core";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { NETWORKS, SUPPORTED_CHAIN_IDS, SUPPORTED_CHAINS } from "../lib/config";
 
 export function NetworkSwitcher() {
@@ -13,17 +19,20 @@ export function NetworkSwitcher() {
 
   return (
     <Select
-      value={onSupported ? String(chainId) : null}
-      onChange={(v) => v && switchChain({ chainId: Number(v) })}
+      value={onSupported ? String(chainId) : ""}
+      onValueChange={(v) => switchChain({ chainId: Number(v) })}
       disabled={isPending}
-      placeholder="Network"
-      data={SUPPORTED_CHAINS.map((c) => ({
-        value: String(c.id),
-        label: NETWORKS[c.id]!.label,
-      }))}
-      size="sm"
-      w={130}
-      allowDeselect={false}
-    />
+    >
+      <SelectTrigger size="sm" className="w-[118px] font-mono text-xs">
+        <SelectValue placeholder="Network" />
+      </SelectTrigger>
+      <SelectContent>
+        {SUPPORTED_CHAINS.map((c) => (
+          <SelectItem key={c.id} value={String(c.id)} className="font-mono">
+            {NETWORKS[c.id]!.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
   );
 }

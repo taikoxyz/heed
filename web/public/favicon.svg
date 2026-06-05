@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
   <style>
-    .h { fill: #1c1825; }
-    .dot { fill: #b3127e; }
+    .h { fill: #1c1a17; }
+    .dot { fill: #9a6a1c; }
     @media (prefers-color-scheme: dark) {
-      .h { fill: #f5eef7; }
-      .dot { fill: #ee5fa6; }
+      .h { fill: #f4efe7; }
+      .dot { fill: #e6b341; }
     }
   </style>
   <g class="h">

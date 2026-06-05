@@ -1,6 +1,5 @@
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { MantineProvider } from "@mantine/core";
 import { ErrorBoundary } from "../src/components/ErrorBoundary";
 
 function Boom(): never {
@@ -17,11 +16,9 @@ describe("ErrorBoundary", () => {
 
   it("renders the fallback when a child throws", () => {
     render(
-      <MantineProvider>
-        <ErrorBoundary>
-          <Boom />
-        </ErrorBoundary>
-      </MantineProvider>,
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>,
     );
     expect(screen.getByText("kaboom")).toBeTruthy();
     expect(screen.getByText("Try again")).toBeTruthy();

@@ -1,20 +1,14 @@
 import { useState } from "react";
+import { InboxIcon, RefreshCwIcon, SearchIcon } from "lucide-react";
 import { useAccount } from "wagmi";
 import type { MailEvent } from "@heed/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ActionIcon,
-  Button,
-  Center,
-  Group,
-  Progress,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
-import { IconRefresh } from "@tabler/icons-react";
 import { MailCard } from "./MailCard";
 import { ErrorBoundary } from "./ErrorBoundary";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import { errorMessage } from "../lib/format";
 import { getEffectiveConfig } from "../lib/settings";
 import { getFlags, setRead } from "../lib/db";
@@ -80,47 +74,79 @@ export function MailList({
       m.contentRef.toLowerCase().includes(f),
   );
 
+  const title = direction === "sent" ? "Sent" : "Inbox";
+  const unread =
+    direction === "received" && flags
+      ? mail.filter((m) => flags[m.txHash] === false || !(m.txHash in flags))
+          .length
+      : 0;
+
   return (
-    <Stack gap="md">
-      <Group gap="xs" wrap="nowrap">
-        <TextInput
-          flex={1}
-          value={filter}
-          onChange={(e) => setFilter(e.currentTarget.value)}
-          placeholder="Filter by address or ref…"
-          aria-label="Filter mail"
-        />
-        <ActionIcon
-          variant="default"
-          size="lg"
-          onClick={onRefresh}
-          disabled={isFetching}
-          aria-label="Refresh"
-        >
-          <IconRefresh
-            size={18}
-            style={isFetching ? { animation: "spin 1s linear infinite" } : {}}
-          />
-        </ActionIcon>
-      </Group>
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <span className="eyebrow">
+            <span className="dot" />
+            {direction === "sent" ? "Outbound" : "Encrypted"}
+          </span>
+          <h1 className="mt-1.5 font-display text-3xl font-medium tracking-tight">
+            {title}
+            {unread > 0 && (
+              <span className="ml-2 align-middle font-mono text-sm font-normal text-signal">
+                {unread} new
+              </span>
+            )}
+          </h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <SearchIcon className="absolute top-1/2 left-2.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder="Filter…"
+              aria-label="Filter mail"
+              className="h-9 w-44 pl-8 font-mono text-xs"
+            />
+          </div>
+          <Button
+            variant="outline"
+            size="icon-sm"
+            className="size-9"
+            onClick={onRefresh}
+            disabled={isFetching}
+            aria-label="Refresh"
+          >
+            <RefreshCwIcon className={isFetching ? "animate-spin" : ""} />
+          </Button>
+        </div>
+      </div>
 
       {isLoading ? (
-        <Stack gap="xs" py="md">
-          <Progress value={(loadProgress ?? 0) * 100} />
-          <Text c="dimmed" ta="center" size="xs">
-            Loading {direction} mail… {Math.round((loadProgress ?? 0) * 100)}%
-          </Text>
-        </Stack>
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <Progress value={(loadProgress ?? 0) * 100} />
+            <div className="text-center font-mono text-xs text-muted-foreground">
+              Loading {direction} mail… {Math.round((loadProgress ?? 0) * 100)}%
+            </div>
+          </div>
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-28 w-full rounded-xl" />
+          ))}
+        </div>
       ) : error ? (
-        <Text c="red" size="sm">
+        <div className="rounded-xl border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive">
           {errorMessage(error)}
-        </Text>
+        </div>
       ) : filtered.length === 0 ? (
-        <Text c="dimmed" size="sm">
-          {mail.length > 0 ? "No matches." : emptyText}
-        </Text>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-xl border border-dashed border-border py-16 text-center">
+          <InboxIcon className="size-7 text-muted-foreground/60" />
+          <p className="text-sm text-muted-foreground">
+            {mail.length > 0 ? "No matches." : emptyText}
+          </p>
+        </div>
       ) : (
-        <>
+        <div className="space-y-3">
           {filtered.map((m) => (
             <ErrorBoundary key={m.txHash}>
               <MailCard
@@ -136,19 +162,19 @@ export function MailList({
             </ErrorBoundary>
           ))}
           {hasMore && (
-            <Center pt="xs">
+            <div className="flex justify-center pt-2">
               <Button
-                variant="default"
+                variant="outline"
                 size="sm"
                 onClick={onLoadMore}
                 disabled={isLoadingMore}
               >
                 {isLoadingMore ? "Loading…" : "Load more"}
               </Button>
-            </Center>
+            </div>
           )}
-        </>
+        </div>
       )}
-    </Stack>
+    </div>
   );
 }

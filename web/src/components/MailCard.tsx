@@ -1,10 +1,13 @@
 import { useState } from "react";
+import { LockIcon } from "lucide-react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
-import { Badge, Button, Card, Code, Group, Stack, Text } from "@mantine/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
 import { useCompose } from "../lib/composeDraft";
 import { errorMessage } from "../lib/format";
 import { EnvelopeCard } from "./EnvelopeCard";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 
 export function MailCard({
   mail,
@@ -52,74 +55,75 @@ export function MailCard({
   const counterpartyLabel = direction === "sent" ? "to" : "from";
 
   return (
-    <Card withBorder padding="md" radius="md">
-      <Stack gap="sm">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Group gap="xs" wrap="nowrap" miw={0}>
+    <Card
+      size="sm"
+      className="transition-colors hover:ring-foreground/20 data-[unread=true]:ring-signal/40"
+      data-unread={read === false ? "true" : undefined}
+    >
+      <CardContent className="space-y-2.5">
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2 text-sm text-muted-foreground">
             {read === false && (
               <span
+                className="size-2 shrink-0 rounded-full bg-signal shadow-[0_0_0_3px_color-mix(in_srgb,var(--signal)_22%,transparent)]"
                 aria-label="Unread"
                 title="Unread"
-                style={{
-                  flexShrink: 0,
-                  width: 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background: "var(--mantine-color-indigo-5)",
-                }}
               />
             )}
-            <Text size="sm" c="dimmed">
-              {counterpartyLabel} <Code fz="xs">{counterparty}</Code>
-            </Text>
-          </Group>
+            <span className="truncate">
+              <span className="label-mono mr-1.5">{counterpartyLabel}</span>
+              <span className="font-mono text-foreground/90">
+                {counterparty}
+              </span>
+            </span>
+          </div>
           {direction === "received" && (
-            <Button variant="subtle" size="compact-sm" onClick={reply}>
+            <Button variant="ghost" size="xs" onClick={reply}>
               Reply
             </Button>
           )}
-        </Group>
-        <Group gap="xs" wrap="wrap">
-          <Badge variant="light" color="gray">
+        </div>
+        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+          <Badge variant="secondary" className="font-mono font-normal">
             {direction === "sent" ? "paid" : "fee"} {mail.valueGwei} gwei
           </Badge>
-          <Text size="xs" c="dimmed">
-            ref <Code fz="xs">{mail.contentRef.slice(0, 10)}…</Code>
-          </Text>
-        </Group>
+          <span className="font-mono">
+            ref{" "}
+            <code className="text-foreground/70">
+              {mail.contentRef.slice(0, 10)}…
+            </code>
+          </span>
+        </div>
 
         {content ? (
-          renderDecoded(content, mail)
+          <div className="pt-1">{renderDecoded(content, mail)}</div>
         ) : (
           <Button
-            variant="default"
+            variant="outline"
             size="sm"
             onClick={() => open(false)}
-            loading={busy}
-            w="fit-content"
+            disabled={busy}
+            className="gap-1.5"
           >
+            <LockIcon className="size-3.5" />
             {busy ? "Decrypting…" : "Open"}
           </Button>
         )}
 
         {error && (
-          <Stack gap="xs">
-            <Text size="xs" c="red" style={{ wordBreak: "break-word" }}>
-              {error}
-            </Text>
+          <div className="space-y-1.5 text-xs text-destructive">
+            <div className="break-words">{error}</div>
             <Button
-              variant="light"
-              color="red"
+              variant="destructive"
               size="sm"
               onClick={() => open(true)}
-              loading={busy}
-              w="fit-content"
+              disabled={busy}
             >
               Re-sign and retry
             </Button>
-          </Stack>
+          </div>
         )}
-      </Stack>
+      </CardContent>
     </Card>
   );
 }
@@ -130,23 +134,17 @@ function renderDecoded(content: DecodedPayload, mail: MailEvent) {
   }
   if (content.kind === "mail") {
     return (
-      <Stack gap={4}>
-        <Text size="xs" c="dimmed">
-          legacy mail · {content.mail.subject}
-        </Text>
-        <Text
-          component="pre"
-          size="sm"
-          style={{ whiteSpace: "pre-wrap", margin: 0, fontFamily: "inherit" }}
-        >
+      <div className="space-y-1">
+        <div className="label-mono">legacy mail · {content.mail.subject}</div>
+        <pre className="font-sans text-sm whitespace-pre-wrap text-foreground">
           {content.mail.body.text}
-        </Text>
-      </Stack>
+        </pre>
+      </div>
     );
   }
   return (
-    <Text size="xs" c="dimmed">
+    <div className="text-xs text-muted-foreground">
       unknown payload — {content.bytes.length} bytes
-    </Text>
+    </div>
   );
 }

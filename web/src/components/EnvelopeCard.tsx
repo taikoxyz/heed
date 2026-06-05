@@ -1,30 +1,30 @@
 import { useEffect, useState } from "react";
 import { useAccount } from "wagmi";
 import {
+  BadgeCheckIcon,
+  CheckIcon,
+  ShieldAlertIcon,
+  ExternalLinkIcon,
+} from "lucide-react";
+import {
   recoverEnvelopeSigner,
   type Envelope,
   type MailEvent,
 } from "@heed/core";
-import {
-  Anchor,
-  Badge,
-  Box,
-  Button,
-  Code,
-  Divider,
-  Group,
-  Stack,
-  Text,
-  Title,
-} from "@mantine/core";
 import { type ResolvedIdentity } from "../lib/uri";
 import { resolveIdentity } from "../lib/identity";
 import { getEffectiveConfig } from "../lib/settings";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
 
-const URGENCY_COLOR: Record<Envelope["urgency"], string> = {
-  low: "gray",
-  normal: "blue",
-  high: "red",
+const URGENCY_VARIANT: Record<
+  Envelope["urgency"],
+  "secondary" | "outline" | "destructive"
+> = {
+  low: "secondary",
+  normal: "outline",
+  high: "destructive",
 };
 
 export function EnvelopeCard({
@@ -83,43 +83,36 @@ export function EnvelopeCard({
 
   const signerLabel =
     signerCheck === "match"
-      ? "✓ signature matches sender"
+      ? "signature matches sender"
       : signerCheck === "mismatch"
-        ? "⚠ signer does not match sender wallet"
+        ? "signer does not match sender wallet"
         : signerCheck === "error"
-          ? "⚠ signature could not be verified"
+          ? "signature could not be verified"
           : "verifying signature…";
 
-  const signerColor =
-    signerCheck === "match"
-      ? "teal"
-      : signerCheck === "mismatch" || signerCheck === "error"
-        ? "red"
-        : "dimmed";
-
   return (
-    <Stack gap="sm" component="article">
-      <Group gap="xs" wrap="wrap">
-        <Text fw={600} size="sm">
+    <article className="space-y-2.5">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="text-base font-semibold">
           {envelope.from.name || mailSenderShort(mail)}
-        </Text>
+        </span>
         {envelope.from.owner_url && (
-          <Anchor
+          <a
+            className="text-xs text-signal hover:underline"
             href={envelope.from.owner_url}
             target="_blank"
             rel="noreferrer noopener"
-            size="xs"
           >
             {hostnameOf(envelope.from.owner_url)}
-          </Anchor>
+          </a>
         )}
         {identity && (
           <Badge
-            variant={identity.verified ? "light" : "outline"}
-            color={identity.verified ? "teal" : "gray"}
+            variant={identity.verified ? "secondary" : "outline"}
             title={identity.description ?? identity.raw}
+            className="gap-1 font-mono font-normal"
           >
-            {identity.verified ? "✓ " : "○ "}
+            {identity.verified ? <BadgeCheckIcon className="size-3" /> : null}
             {identity.source === "erc8004"
               ? "erc-8004"
               : identity.source === "https"
@@ -128,60 +121,62 @@ export function EnvelopeCard({
             · {identity.display_name ?? identity.raw}
           </Badge>
         )}
-        <Badge variant="light" color={URGENCY_COLOR[envelope.urgency]}>
+        <Badge variant={URGENCY_VARIANT[envelope.urgency]}>
           {envelope.urgency}
         </Badge>
-      </Group>
+      </header>
 
-      <Title order={3} size="h3" mt="xs" mb="xs">
+      <h3 className="font-display text-2xl leading-tight font-medium tracking-tight">
         {envelope.title}
-      </Title>
+      </h3>
 
-      <Text
-        component="pre"
-        size="sm"
-        style={{ whiteSpace: "pre-wrap", margin: 0, fontFamily: "inherit" }}
-      >
+      <pre className="font-sans text-[0.95rem] leading-relaxed whitespace-pre-wrap text-foreground">
         {envelope.body}
-      </Text>
+      </pre>
 
       {envelope.action_url && (
-        <Box>
-          <Button
-            component="a"
+        <Button asChild size="sm" className="gap-1.5">
+          <a
             href={envelope.action_url}
             target="_blank"
             rel="noreferrer noopener"
-            size="sm"
-            variant="default"
           >
-            {hostnameOf(envelope.action_url)} →
-          </Button>
-        </Box>
+            {hostnameOf(envelope.action_url)}
+            <ExternalLinkIcon className="size-3.5" />
+          </a>
+        </Button>
       )}
 
-      <Divider my="xs" />
+      <Separator className="my-1" />
 
-      <Group component="footer" gap="md" wrap="wrap">
-        <Text size="xs" c="dimmed">
-          sent {formatTimestamp(envelope.sent_at)}
-        </Text>
-        <Text size="xs" c="dimmed" title={mail.sender}>
-          from <Code fz="xs">{mailSenderShort(mail)}</Code>
-        </Text>
-        <Text size="xs" c="dimmed">
-          fee {mail.valueGwei} gwei
-        </Text>
+      <footer className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-0.5 font-mono text-xs text-muted-foreground">
+        <span>sent {formatTimestamp(envelope.sent_at)}</span>
+        <span title={mail.sender}>from {mailSenderShort(mail)}</span>
+        <span>fee {mail.valueGwei} gwei</span>
         {envelope.reply_to && (
-          <Text size="xs" c="dimmed" title={envelope.reply_to}>
-            in reply to <Code fz="xs">{envelope.reply_to.slice(0, 10)}…</Code>
-          </Text>
+          <span title={envelope.reply_to}>
+            in reply to {envelope.reply_to.slice(0, 10)}…
+          </span>
         )}
-        <Text size="xs" c={signerColor}>
+        <span
+          className={
+            "inline-flex items-center gap-1 " +
+            (signerCheck === "match"
+              ? "text-emerald-500"
+              : signerCheck === "mismatch" || signerCheck === "error"
+                ? "text-destructive"
+                : "")
+          }
+        >
+          {signerCheck === "match" ? (
+            <CheckIcon className="size-3" />
+          ) : signerCheck === "mismatch" || signerCheck === "error" ? (
+            <ShieldAlertIcon className="size-3" />
+          ) : null}
           {signerLabel}
-        </Text>
-      </Group>
-    </Stack>
+        </span>
+      </footer>
+    </article>
   );
 }
 
