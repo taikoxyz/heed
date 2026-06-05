@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { isAddress, type Address } from "viem";
+import { formatUnits, isAddress, parseUnits, type Address } from "viem";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useMyInbox } from "../hooks/useMyInbox";
@@ -108,7 +108,7 @@ export function Account() {
         <CardHeader>
           <CardTitle>Anti-spam fee</CardTitle>
           <CardDescription>
-            Senders must pay this fee (in gwei) to mail you, unless you trust
+            Senders must pay this fee (in ether) to mail you, unless you trust
             them.
           </CardDescription>
         </CardHeader>
@@ -116,17 +116,20 @@ export function Account() {
           <div className="text-sm">
             <span className="label-mono mr-2">Current</span>
             <span className="font-mono">
-              {isLoading ? "…" : `${Number(inbox?.feeGwei ?? 0)} gwei`}
+              {isLoading
+                ? "…"
+                : `${formatUnits(BigInt(inbox?.feeGwei ?? 0), 9)} ether`}
             </span>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="account-fee" className="label-mono">
-              New fee (gwei)
+              New fee (ether)
             </Label>
             <Input
               id="account-fee"
               type="number"
               min={0}
+              step="any"
               value={fee}
               onChange={(e) => setFee(e.target.value)}
               placeholder="0"
@@ -138,12 +141,17 @@ export function Account() {
             disabled={busy !== null || fee === ""}
             onClick={() =>
               run("fee", async () => {
-                const v = Number(fee);
-                if (!Number.isInteger(v) || v < 0) {
-                  throw new Error("fee must be a non-negative whole number");
+                let gwei: bigint;
+                try {
+                  gwei = parseUnits(fee, 9);
+                } catch {
+                  throw new Error("fee must be a non-negative number");
                 }
-                await actions.setFee(v);
-                toast.success(`Anti-spam fee set to ${v} gwei.`);
+                if (gwei < 0n) {
+                  throw new Error("fee must be a non-negative number");
+                }
+                await actions.setFee(Number(gwei));
+                toast.success(`Anti-spam fee set to ${fee} ether.`);
                 setFee("");
               })
             }
