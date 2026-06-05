@@ -2,6 +2,7 @@ import { useState } from "react";
 import { LockIcon } from "lucide-react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
+import { useNow } from "../hooks/useNow";
 import { useCompose } from "../lib/composeDraft";
 import { errorMessage, formatRelativeTime } from "../lib/format";
 import { EnvelopeCard } from "./EnvelopeCard";
@@ -25,6 +26,7 @@ export function MailCard({
   const [busy, setBusy] = useState(false);
   const decrypt = useMailDecryption();
   const { openCompose } = useCompose();
+  const now = useNow();
 
   async function open(force = false) {
     setError(null);
@@ -99,7 +101,7 @@ export function MailCard({
               Number(mail.blockTimestamp) * 1000,
             ).toLocaleString()}
           >
-            {formatRelativeTime(mail.blockTimestamp)}
+            {formatRelativeTime(mail.blockTimestamp, now)}
           </span>
         </div>
 
