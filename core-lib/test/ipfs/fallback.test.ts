@@ -62,15 +62,15 @@ describe("fetchCidWithFallback", () => {
     const mockFetch = vi.mocked(globalThis.fetch);
     mockFetch.mockResolvedValue({ ok: false, status: 502 } as Response);
 
-    await expect(
-      fetchCidWithFallback(
-        "Qmbad",
-        ["https://gw1.example.com", "https://gw2.example.com"],
-        {
-          retries: 0,
-        },
-      ),
-    ).rejects.toThrow("all gateways failed");
+    const promise = fetchCidWithFallback(
+      "Qmbad",
+      ["https://gw1.example.com", "https://gw2.example.com/"],
+      { retries: 0 },
+    );
+
+    await expect(promise).rejects.toThrow("all gateways failed");
+    await expect(promise).rejects.toThrow("https://gw1.example.com/ipfs/Qmbad");
+    await expect(promise).rejects.toThrow("https://gw2.example.com/ipfs/Qmbad");
   });
 
   it("throws when no gateways are configured", async () => {
