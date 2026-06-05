@@ -29,7 +29,9 @@ beforeEach(async () => {
   logSpy = vi.spyOn(console, "log").mockImplementation((msg) => {
     logs.push(String(msg));
   });
-  errSpy = vi.spyOn(process.stderr, "write").mockImplementation(((chunk: unknown) => {
+  errSpy = vi.spyOn(process.stderr, "write").mockImplementation(((
+    chunk: unknown,
+  ) => {
     errs.push(String(chunk));
     return true;
   }) as never);
@@ -63,13 +65,19 @@ describe("heed config", () => {
   it("get with no key prints the whole config as JSON", async () => {
     await run("config", "get");
     const printed = JSON.parse(logs.at(-1)!) as Record<string, unknown>;
-    expect((printed as { network: { chain_id: number } }).network.chain_id).toBe(167000);
+    expect(
+      (printed as { network: { chain_id: number } }).network.chain_id,
+    ).toBe(167000);
   });
 
-  it("rejects unknown keys with exit code 1", async () => {
+  it("rejects unknown keys with BAD_INPUT (exit 2) and a JSON error envelope", async () => {
     await run("config", "set", "network.password", "x");
-    expect(process.exitCode).toBe(1);
-    expect(errs.join("")).toMatch(/unknown key/);
+    expect(process.exitCode).toBe(2);
+    const parsed = JSON.parse(errs.join("")) as {
+      error: { code: string; message: string };
+    };
+    expect(parsed.error.code).toBe("BAD_INPUT");
+    expect(parsed.error.message).toMatch(/unknown key/);
   });
 });
 
@@ -91,9 +99,13 @@ describe("heed key show", () => {
     expect(out.source).toBe("env");
   });
 
-  it("exits 1 with a friendly message when no key is set", async () => {
+  it("emits WALLET_NOT_CONFIGURED (exit 2) as JSON on stderr when no key is set", async () => {
     await run("key", "show");
-    expect(process.exitCode).toBe(1);
-    expect(errs.join("")).toMatch(/no key found/);
+    expect(process.exitCode).toBe(2);
+    const parsed = JSON.parse(errs.join("")) as {
+      error: { code: string; message: string };
+    };
+    expect(parsed.error.code).toBe("WALLET_NOT_CONFIGURED");
+    expect(parsed.error.message).toMatch(/no key found/);
   });
 });

@@ -30,7 +30,9 @@ beforeEach(async () => {
   logSpy = vi.spyOn(console, "log").mockImplementation((msg) => {
     logs.push(String(msg));
   });
-  errSpy = vi.spyOn(process.stderr, "write").mockImplementation(((chunk: unknown) => {
+  errSpy = vi.spyOn(process.stderr, "write").mockImplementation(((
+    chunk: unknown,
+  ) => {
     errs.push(String(chunk));
     return true;
   }) as never);
@@ -51,7 +53,10 @@ async function run(...args: string[]) {
 describe("heed agent", () => {
   it("show prints null address + empty identity when nothing is configured", async () => {
     await run("agent", "show");
-    const out = JSON.parse(logs.at(-1)!) as { address: string | null; name: string };
+    const out = JSON.parse(logs.at(-1)!) as {
+      address: string | null;
+      name: string;
+    };
     expect(out.address).toBeNull();
     expect(out.name).toBe("");
   });
@@ -68,7 +73,11 @@ describe("heed agent", () => {
     await run("agent", "set-owner-url", "https://claude.com");
     await run("agent", "set-logo-cid", "bafybeigdyrztest");
     await run("agent", "show");
-    const out = JSON.parse(logs.at(-1)!) as { name: string; owner_url: string; logo_cid: string };
+    const out = JSON.parse(logs.at(-1)!) as {
+      name: string;
+      owner_url: string;
+      logo_cid: string;
+    };
     expect(out.name).toBe("Claude Code");
     expect(out.owner_url).toBe("https://claude.com");
     expect(out.logo_cid).toBe("bafybeigdyrztest");
@@ -104,18 +113,24 @@ describe("heed setup --no-publish (end-to-end through commander)", () => {
     expect(out.keyNonce).toBe(0);
     expect(out.txHash).toBeUndefined();
     expect(errs.join("")).toMatch(/encryption key not yet published/);
-    const wallet = JSON.parse(await readFile(join(dir, "wallet.json"), "utf8")) as { privateKey: string };
+    const wallet = JSON.parse(
+      await readFile(join(dir, "wallet.json"), "utf8"),
+    ) as { privateKey: string };
     expect(wallet.privateKey).toMatch(/^0x[0-9a-f]{64}$/i);
     expect((await stat(join(dir, "wallet.json"))).mode & 0o777).toBe(0o600);
   });
 
-  it("refuses to overwrite an existing wallet without --force", async () => {
+  it("refuses to overwrite an existing wallet without --force (BAD_INPUT, exit 2)", async () => {
     await run("setup", "--no-publish");
     logs.length = 0;
     errs.length = 0;
     await run("setup", "--no-publish");
-    expect(process.exitCode).toBe(1);
-    expect(errs.join("")).toMatch(/already configured/);
+    expect(process.exitCode).toBe(2);
+    const parsed = JSON.parse(errs.join("")) as {
+      error: { code: string; message: string };
+    };
+    expect(parsed.error.code).toBe("BAD_INPUT");
+    expect(parsed.error.message).toMatch(/already configured/);
   });
 
   it("imports a specified private key", async () => {
@@ -124,9 +139,13 @@ describe("heed setup --no-publish (end-to-end through commander)", () => {
     expect(out.address.toLowerCase()).toBe(ACCOUNT.address.toLowerCase());
   });
 
-  it("errors when no rpc_url is configured and --no-publish is not set", async () => {
+  it("errors when no rpc_url is configured and --no-publish is not set (RPC_NOT_CONFIGURED, exit 2)", async () => {
     await run("setup");
-    expect(process.exitCode).toBe(1);
-    expect(errs.join("")).toMatch(/RPC/);
+    expect(process.exitCode).toBe(2);
+    const parsed = JSON.parse(errs.join("")) as {
+      error: { code: string; message: string };
+    };
+    expect(parsed.error.code).toBe("RPC_NOT_CONFIGURED");
+    expect(parsed.error.message).toMatch(/RPC/);
   });
 });

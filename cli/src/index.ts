@@ -5,12 +5,15 @@ import { registerSetupCommand } from "./commands/setup";
 import { registerAgentCommand } from "./commands/agent";
 import { registerSendCommand } from "./commands/send";
 import { registerInboxCommand } from "./commands/inbox";
+import { reportError } from "./lib/errors";
 
 export function buildProgram(): Command {
   const program = new Command();
   program
     .name("heed")
-    .description("Heed CLI for AI agents: send mail, read inbox, manage identity")
+    .description(
+      "Heed CLI for AI agents: send mail, read inbox, manage identity",
+    )
     .version("0.1.0")
     .showHelpAfterError();
 
@@ -24,7 +27,9 @@ export function buildProgram(): Command {
   return program;
 }
 
-export async function main(argv: readonly string[] = process.argv): Promise<void> {
+export async function main(
+  argv: readonly string[] = process.argv,
+): Promise<void> {
   const program = buildProgram();
   await program.parseAsync(argv as string[]);
 }
@@ -32,7 +37,7 @@ export async function main(argv: readonly string[] = process.argv): Promise<void
 const isEntry = import.meta.url === `file://${process.argv[1]}`;
 if (isEntry) {
   main().catch((err) => {
-    process.stderr.write(`${(err as Error).message}\n`);
-    process.exit(1);
+    reportError(err);
+    process.exit(process.exitCode ?? 1);
   });
 }

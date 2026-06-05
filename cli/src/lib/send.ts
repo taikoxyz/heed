@@ -18,6 +18,7 @@ import {
   type Urgency,
 } from "@heed/core";
 import type { HeedConfig } from "../config/store";
+import { CliError } from "./errors";
 
 export interface SendArgs {
   to: Address;
@@ -26,12 +27,35 @@ export interface SendArgs {
   urgency: Urgency;
   actionUrl?: string;
   replyTo?: Hex;
+  // Refuse to send if the recipient's on-chain fee exceeds this cap (in gwei).
+  // Lets agents bound spend instead of paying whatever the recipient set.
+  maxFeeGwei?: number;
+  // Atomic delivery: if any mail in the batch fails, the whole tx reverts so
+  // the caller's value is returned and the agent gets a clean failure signal.
+  // Defaults to true (best-effort is opt-in via --best-effort).
+  atomic?: boolean;
+  // Wait for the transaction receipt and assert a MailSent event for each
+  // recipient. Defaults to true for deterministic delivery; pass --no-wait
+  // to return immediately with just the tx hash.
+  wait?: boolean;
 }
 
 export interface RecipientKey {
   pub: Hex;
   keyNonce: number;
   feeGwei: number;
+}
+
+export interface DeliveryReceipt {
+  status: "success" | "reverted";
+  blockNumber: bigint;
+  gasUsed: bigint;
+  // Total wei deducted from the sender: gas cost + (value transferred to
+  // recipient, or 0 if the tx reverted and value was returned).
+  totalCostWei: bigint;
+  // True iff status === "success" AND a MailSent event was emitted for every
+  // expected recipient. The agent uses this as the single source of truth.
+  delivered: boolean;
 }
 
 export interface SendDeps {
@@ -42,7 +66,9 @@ export interface SendDeps {
   sendBatch: (args: {
     mails: { recipient: Address; valueGwei: number; contentRef: Hex }[];
     totalValueWei: bigint;
-  }) => Promise<Hash>;
+    atomic: boolean;
+    wait: boolean;
+  }) => Promise<{ txHash: Hash; receipt?: DeliveryReceipt }>;
   now: () => number;
 }
 
@@ -52,6 +78,7 @@ export interface SendResult {
   cid: string;
   feeGwei: number;
   signedEnvelope: Envelope;
+  receipt?: DeliveryReceipt;
 }
 
 export interface DryRunResult {
@@ -76,8 +103,12 @@ export async function buildSignedEnvelope(args: {
     from: {
       name: config.identity.name,
       owner_url: config.identity.owner_url,
-      ...(config.identity.logo_cid !== undefined && config.identity.logo_cid !== "" && { logo_cid: config.identity.logo_cid }),
-      ...(config.identity.uri !== undefined && config.identity.uri !== "" && { uri: config.identity.uri }),
+      ...(config.identity.logo_cid !== undefined &&
+        config.identity.logo_cid !== "" && {
+          logo_cid: config.identity.logo_cid,
+        }),
+      ...(config.identity.uri !== undefined &&
+        config.identity.uri !== "" && { uri: config.identity.uri }),
     },
     title: send.title,
     body: send.body,
@@ -94,39 +125,102 @@ export async function buildSignedEnvelope(args: {
   });
 }
 
-export async function runSend(args: SendArgs, deps: SendDeps): Promise<SendResult> {
+export async function runSend(
+  args: SendArgs,
+  deps: SendDeps,
+): Promise<SendResult> {
   const { encrypted, signed, recipient } = await prepareForWire(args, deps);
   const cid = await deps.pin(encrypted, `heed-${args.to}-${signed.sent_at}`);
   const contentRef = bytesToHex(cidToDigest(cid));
   const totalValueWei = BigInt(recipient.feeGwei) * 10n ** 9n;
-  const txHash = await deps.sendBatch({
+  const atomic = args.atomic ?? true;
+  const wait = args.wait ?? true;
+  const { txHash, receipt } = await deps.sendBatch({
     mails: [{ recipient: args.to, valueGwei: recipient.feeGwei, contentRef }],
     totalValueWei,
+    atomic,
+    wait,
   });
-  return { txHash, contentRef, cid, feeGwei: recipient.feeGwei, signedEnvelope: signed };
+  if (receipt && !receipt.delivered) {
+    throw new CliError(
+      "DELIVERY_FAILED",
+      `mail to ${args.to} did not deliver (status=${receipt.status}, tx=${txHash})`,
+      {
+        recipient: args.to,
+        txHash,
+        status: receipt.status,
+        blockNumber: receipt.blockNumber.toString(),
+        gasUsed: receipt.gasUsed.toString(),
+        totalCostWei: receipt.totalCostWei.toString(),
+      },
+    );
+  }
+  return {
+    txHash,
+    contentRef,
+    cid,
+    feeGwei: recipient.feeGwei,
+    signedEnvelope: signed,
+    ...(receipt && { receipt }),
+  };
 }
 
-export async function runSendDryRun(args: SendArgs, deps: Omit<SendDeps, "pin" | "sendBatch">): Promise<DryRunResult> {
+export async function runSendDryRun(
+  args: SendArgs,
+  deps: Omit<SendDeps, "pin" | "sendBatch">,
+): Promise<DryRunResult> {
   const { encrypted, signed, recipient } = await prepareForWire(args, deps);
   const cid = digestToCid(sha256OfBytes(encrypted));
   const contentRef = bytesToHex(cidToDigest(cid));
-  return { feeGwei: recipient.feeGwei, contentRef, cid, signedEnvelope: signed, encryptedSize: encrypted.length };
+  return {
+    feeGwei: recipient.feeGwei,
+    contentRef,
+    cid,
+    signedEnvelope: signed,
+    encryptedSize: encrypted.length,
+  };
 }
 
 async function prepareForWire(
   args: SendArgs,
   deps: Omit<SendDeps, "pin" | "sendBatch">,
-): Promise<{ encrypted: Uint8Array; signed: Envelope; recipient: RecipientKey }> {
+): Promise<{
+  encrypted: Uint8Array;
+  signed: Envelope;
+  recipient: RecipientKey;
+}> {
   const recipient = await deps.lookupRecipient(args.to);
   if (!recipient.pub || /^0x0{64}$/i.test(recipient.pub)) {
-    throw new Error(
+    throw new CliError(
+      "RECIPIENT_NO_KEY",
       `recipient ${args.to} has not published an encryption key. they must run \`heed setup\` (or publish a key) before they can receive mail.`,
+      { recipient: args.to },
     );
   }
-  const signed = await buildSignedEnvelope({ send: args, privateKey: deps.privateKey, config: deps.config, now: deps.now });
+  if (args.maxFeeGwei !== undefined && recipient.feeGwei > args.maxFeeGwei) {
+    throw new CliError(
+      "FEE_EXCEEDS_MAX",
+      `recipient fee ${recipient.feeGwei} gwei exceeds --max-fee-gwei ${args.maxFeeGwei}`,
+      {
+        recipient: args.to,
+        feeGwei: recipient.feeGwei,
+        maxFeeGwei: args.maxFeeGwei,
+      },
+    );
+  }
+  const signed = await buildSignedEnvelope({
+    send: args,
+    privateKey: deps.privateKey,
+    config: deps.config,
+    now: deps.now,
+  });
   const envBytes = encodeEnvelope(signed);
   const encrypted = encodeEncryptedBytes(envBytes, [
-    { rcpt: args.to, keyNonce: recipient.keyNonce, pub: hexToBytes(recipient.pub) },
+    {
+      rcpt: args.to,
+      keyNonce: recipient.keyNonce,
+      pub: hexToBytes(recipient.pub),
+    },
   ]);
   return { encrypted, signed, recipient };
 }
