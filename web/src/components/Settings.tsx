@@ -4,6 +4,8 @@ import {
   Anchor,
   Button,
   Card,
+  Code,
+  Divider,
   Group,
   Modal,
   NumberInput,
@@ -16,12 +18,17 @@ import {
 import { notifications } from "@mantine/notifications";
 import {
   clearSettings,
-  EMPTY_SETTINGS,
   loadSettings,
   saveSettings,
+  type NetworkSettings,
   type Settings as SettingsT,
 } from "../lib/settings";
-import { parseGateways } from "../lib/config";
+import {
+  NETWORKS,
+  parseGateways,
+  PUBLIC_RPC,
+  SUPPORTED_CHAINS,
+} from "../lib/config";
 import {
   clearAll,
   exportAll,
@@ -48,6 +55,10 @@ function gatewayError(value: string): string | null {
   return null;
 }
 
+const monoInputStyles = {
+  input: { fontFamily: "var(--mantine-font-family-monospace)" },
+};
+
 export function Settings() {
   const [draft, setDraft] = useState<SettingsT>(loadSettings);
   const [saved, setSaved] = useState(false);
@@ -61,7 +72,32 @@ export function Settings() {
 
   const gwError = gatewayError(draft.ipfsGateway);
 
-  function update<K extends keyof SettingsT>(key: K, value: SettingsT[K]) {
+  function updateNetwork<K extends keyof NetworkSettings>(
+    chainId: number,
+    key: K,
+    value: NetworkSettings[K],
+  ) {
+    setDraft((d) => ({
+      ...d,
+      networks: {
+        ...d.networks,
+        [chainId]: {
+          ...(d.networks[chainId] ?? {
+            rpcUrl: "",
+            indexerUrl: "",
+            maxFeeGwei: 0,
+          }),
+          [key]: value,
+        },
+      },
+    }));
+    setSaved(false);
+  }
+
+  function updateGlobal<K extends "ipfsGateway" | "pinataJwt">(
+    key: K,
+    value: SettingsT[K],
+  ) {
     setDraft((d) => ({ ...d, [key]: value }));
     setSaved(false);
   }
@@ -73,8 +109,18 @@ export function Settings() {
   }
 
   function onReset() {
-    setDraft(EMPTY_SETTINGS);
-    saveSettings(EMPTY_SETTINGS);
+    const empty: SettingsT = {
+      networks: Object.fromEntries(
+        SUPPORTED_CHAINS.map((c) => [
+          c.id,
+          { rpcUrl: "", indexerUrl: "", maxFeeGwei: 0 },
+        ]),
+      ),
+      ipfsGateway: "",
+      pinataJwt: "",
+    };
+    setDraft(empty);
+    saveSettings(empty);
     setSaved(true);
   }
 
@@ -87,7 +133,7 @@ export function Settings() {
 
   function onClearAll() {
     clearSettings();
-    setDraft(EMPTY_SETTINGS);
+    setDraft(loadSettings());
     setSaved(true);
   }
 
@@ -123,7 +169,8 @@ export function Settings() {
     if (!importData) return;
     try {
       await importAll(importData, mode);
-      setDraft(importData.settings);
+      // Re-read so any legacy-shape settings in the backup are migrated.
+      setDraft(loadSettings());
       await qc.invalidateQueries();
       setImportOpen(false);
       setImportData(null);
@@ -144,67 +191,122 @@ export function Settings() {
     }
   }
 
-  const monoInputStyles = {
-    input: { fontFamily: "var(--mantine-font-family-monospace)" },
-  };
-
   return (
-    <Stack gap="md" maw={620}>
+    <Stack gap="md" maw={680}>
       <Card withBorder padding="lg" radius="md">
         <Stack gap="md">
           <Stack gap={4}>
-            <Title order={2}>Settings</Title>
+            <Title order={2}>Networks</Title>
             <Text size="sm" c="dimmed">
-              Empty fields fall back to the build-time defaults. Saved to
-              localStorage on this device only.
+              Per-network RPC, indexer and anti-spam limits. Empty fields fall
+              back to a public node, so Heed still works without any
+              configuration.
             </Text>
           </Stack>
 
-          <TextInput
-            id="settings-rpc"
-            label="Taiko RPC URL"
-            value={draft.rpcUrl}
-            onChange={(e) => update("rpcUrl", e.currentTarget.value)}
-            placeholder="https://rpc.mainnet.taiko.xyz"
-            styles={monoInputStyles}
-          />
+          {SUPPORTED_CHAINS.map((chain, i) => {
+            const net = NETWORKS[chain.id]!;
+            const entry = draft.networks[chain.id] ?? {
+              rpcUrl: "",
+              indexerUrl: "",
+              maxFeeGwei: 0,
+            };
+            const usingPublicRpc = entry.rpcUrl.trim() === "";
+            // Stable placeholder (not env-overridable) so users always see the
+            // canonical public URL; the effective fallback (which may be a
+            // VITE_*_RPC override in dev/e2e) shows up in the description.
+            const placeholder = PUBLIC_RPC[chain.id]!;
+            return (
+              <Stack gap="sm" key={chain.id}>
+                {i > 0 && <Divider />}
+                <Group gap="xs" align="baseline">
+                  <Title order={4} m={0}>
+                    {net.label}
+                  </Title>
+                  <Text size="xs" c="dimmed">
+                    chainId {chain.id}
+                  </Text>
+                </Group>
+
+                <TextInput
+                  id={`settings-rpc-${chain.id}`}
+                  label={`${net.label} RPC URL`}
+                  value={entry.rpcUrl}
+                  onChange={(e) =>
+                    updateNetwork(chain.id, "rpcUrl", e.currentTarget.value)
+                  }
+                  placeholder={placeholder}
+                  description={
+                    usingPublicRpc ? (
+                      <Text size="xs" c="dimmed">
+                        Using public node <Code fz="xs">{net.rpcUrl}</Code>.
+                        Public endpoints rate-limit aggressively — set your own
+                        for reliable inbox/send.
+                      </Text>
+                    ) : (
+                      "Custom RPC — used for inbox scans, sends, and key actions on this network."
+                    )
+                  }
+                  styles={monoInputStyles}
+                />
+
+                <TextInput
+                  id={`settings-indexer-${chain.id}`}
+                  label={`${net.label} indexer URL`}
+                  value={entry.indexerUrl}
+                  onChange={(e) =>
+                    updateNetwork(chain.id, "indexerUrl", e.currentTarget.value)
+                  }
+                  placeholder="(unset → falls back to RPC log scan)"
+                  description="A GraphQL indexer speeds up inbox loading. When empty, Heed scans logs over RPC instead (slower but always works)."
+                  styles={monoInputStyles}
+                />
+
+                <NumberInput
+                  id={`settings-fee-${chain.id}`}
+                  label={`Max anti-spam fee on ${net.label} (gwei)`}
+                  min={0}
+                  value={entry.maxFeeGwei || ""}
+                  onChange={(v) =>
+                    updateNetwork(chain.id, "maxFeeGwei", Number(v) || 0)
+                  }
+                  placeholder="0"
+                  description="Send will refuse recipients charging more than this. 0 means no cap."
+                  allowDecimal={false}
+                  allowNegative={false}
+                />
+              </Stack>
+            );
+          })}
+        </Stack>
+      </Card>
+
+      <Card withBorder padding="lg" radius="md">
+        <Stack gap="md">
+          <Stack gap={4}>
+            <Title order={2}>IPFS &amp; pinning</Title>
+            <Text size="sm" c="dimmed">
+              Chain-independent. IPFS is content-addressed, so the same gateway
+              and pinning service work for every network.
+            </Text>
+          </Stack>
 
           <TextInput
             id="settings-ipfs"
             label="IPFS gateway(s)"
             value={draft.ipfsGateway}
-            onChange={(e) => update("ipfsGateway", e.currentTarget.value)}
+            onChange={(e) => updateGlobal("ipfsGateway", e.currentTarget.value)}
             placeholder="https://gateway.pinata.cloud,https://ipfs.io"
             description="Comma-separated list, tried in order with fallback on failure."
             error={gwError ?? undefined}
             styles={monoInputStyles}
           />
 
-          <TextInput
-            id="settings-indexer"
-            label="Indexer URL"
-            value={draft.indexerUrl}
-            onChange={(e) => update("indexerUrl", e.currentTarget.value)}
-            placeholder="(unset → falls back to RPC log scan)"
-            styles={monoInputStyles}
-          />
-
-          <NumberInput
-            id="settings-fee"
-            label="Max anti-spam fee (gwei)"
-            min={0}
-            value={draft.maxFeeGwei || ""}
-            onChange={(v) => update("maxFeeGwei", Number(v) || 0)}
-            placeholder="0"
-            allowDecimal={false}
-            allowNegative={false}
-          />
-
           <PasswordInput
             id="settings-pinata"
             label="Pinata JWT"
             value={draft.pinataJwt}
-            onChange={(e) => update("pinataJwt", e.currentTarget.value)}
+            onChange={(e) => updateGlobal("pinataJwt", e.currentTarget.value)}
             placeholder="(required to send mail)"
             autoComplete="off"
             description={
@@ -239,25 +341,25 @@ export function Settings() {
               </Group>
             </Stack>
           )}
-
-          <Group gap="xs" align="center">
-            <Button onClick={onSave} disabled={!!gwError}>
-              Save
-            </Button>
-            <Button variant="default" onClick={onReset}>
-              Reset
-            </Button>
-            <Button variant="subtle" onClick={onClearAll}>
-              Clear all settings
-            </Button>
-            {saved && (
-              <Text size="sm" c="teal">
-                Saved
-              </Text>
-            )}
-          </Group>
         </Stack>
       </Card>
+
+      <Group gap="xs" align="center">
+        <Button onClick={onSave} disabled={!!gwError}>
+          Save
+        </Button>
+        <Button variant="default" onClick={onReset}>
+          Reset
+        </Button>
+        <Button variant="subtle" onClick={onClearAll}>
+          Clear all settings
+        </Button>
+        {saved && (
+          <Text size="sm" c="teal">
+            Saved
+          </Text>
+        )}
+      </Group>
 
       <Card withBorder padding="lg" radius="md">
         <Stack gap="md">
