@@ -3,7 +3,7 @@ import { LockIcon } from "lucide-react";
 import type { DecodedPayload, MailEvent } from "@heed/core";
 import { useMailDecryption } from "../hooks/useMailDecryption";
 import { useCompose } from "../lib/composeDraft";
-import { errorMessage } from "../lib/format";
+import { errorMessage, formatRelativeTime } from "../lib/format";
 import { EnvelopeCard } from "./EnvelopeCard";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -92,6 +92,14 @@ export function MailCard({
             <code className="text-foreground/70">
               {mail.contentRef.slice(0, 10)}…
             </code>
+          </span>
+          <span
+            className="font-mono"
+            title={new Date(
+              Number(mail.blockTimestamp) * 1000,
+            ).toLocaleString()}
+          >
+            {formatRelativeTime(mail.blockTimestamp)}
           </span>
         </div>
 
