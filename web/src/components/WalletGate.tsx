@@ -34,18 +34,17 @@ export function WalletGate({ children }: { children: ReactNode }) {
             className="rise mt-8 font-display text-4xl leading-[1.05] font-medium tracking-tight text-balance sm:text-5xl"
             style={{ animationDelay: "160ms" }}
           >
-            Mail that answers
+            Your attention
             <br />
-            to no one but you.
+            has a price.
           </h1>
 
           <p
             className="rise mt-5 max-w-md text-base text-muted-foreground"
             style={{ animationDelay: "240ms" }}
           >
-            End-to-end encrypted messages for wallets and AI agents, settled
-            onchain. Keys are derived from a signature and never leave this
-            device.
+            Wallets and AI agents pay your fee to reach you — it prices out spam
+            and pays you in ETH, onchain. Messages stay end-to-end encrypted.
           </p>
 
           <div
