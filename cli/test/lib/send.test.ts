@@ -13,18 +13,22 @@ import {
   buildSignedEnvelope,
   runSend,
   runSendDryRun,
+  type DeliveryReceipt,
   type SendArgs,
   type SendDeps,
   type RecipientKey,
 } from "../../src/lib/send";
+import { CliError } from "../../src/lib/errors";
 import { defaultConfig, type HeedConfig } from "../../src/config/store";
 
 const PK: Hex = `0x${"a".repeat(64)}`;
-const TO: Address = "0x" + "B".repeat(40) as Address;
+const TO: Address = ("0x" + "B".repeat(40)) as Address;
 const FAKE_TX: Hash = `0x${"f".repeat(64)}`;
 const FROZEN_NOW = 1735689600_000;
 
-function configWithIdentity(overrides: Partial<HeedConfig["identity"]> = {}): HeedConfig {
+function configWithIdentity(
+  overrides: Partial<HeedConfig["identity"]> = {},
+): HeedConfig {
   return {
     ...defaultConfig(),
     network: { ...defaultConfig().network, rpc_url: "http://localhost" },
@@ -57,7 +61,7 @@ function makeDeps(args: {
     config: args.config,
     lookupRecipient: async () => args.recipient,
     pin: args.pin ?? (async (bytes) => pinAsRealCid(bytes)),
-    sendBatch: args.sendBatch ?? (async () => FAKE_TX),
+    sendBatch: args.sendBatch ?? (async () => ({ txHash: FAKE_TX })),
     now: () => FROZEN_NOW,
   };
 }
@@ -84,9 +88,18 @@ describe("buildSignedEnvelope", () => {
 
   it("populates optional from.uri / from.logo_cid when set in identity", async () => {
     const signed = await buildSignedEnvelope({
-      send: { to: TO, title: "t", body: "b", urgency: "high", actionUrl: "https://app.example/x" },
+      send: {
+        to: TO,
+        title: "t",
+        body: "b",
+        urgency: "high",
+        actionUrl: "https://app.example/x",
+      },
       privateKey: PK,
-      config: configWithIdentity({ uri: "erc8004:taiko:42", logo_cid: "bafy..." }),
+      config: configWithIdentity({
+        uri: "erc8004:taiko:42",
+        logo_cid: "bafy...",
+      }),
       now: () => FROZEN_NOW,
     });
     expect(signed.from.uri).toBe("erc8004:taiko:42");
@@ -111,10 +124,17 @@ describe("runSend", () => {
   it("returns a tx hash, contentRef, and CID, and pins / sends with the right args", async () => {
     const { key } = recipientWithKey();
     const pinFn = vi.fn<SendDeps["pin"]>(async (bytes) => pinAsRealCid(bytes));
-    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => FAKE_TX);
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+    }));
     const result = await runSend(
       { to: TO, title: "deploy?", body: "ready", urgency: "normal" },
-      makeDeps({ config: configWithIdentity(), recipient: key, pin: pinFn, sendBatch: sendFn }),
+      makeDeps({
+        config: configWithIdentity(),
+        recipient: key,
+        pin: pinFn,
+        sendBatch: sendFn,
+      }),
     );
     expect(result.txHash).toBe(FAKE_TX);
     expect(result.cid).toMatch(/^baf/);
@@ -125,6 +145,178 @@ describe("runSend", () => {
     expect(sendCall.mails[0]!.recipient).toBe(TO);
     expect(sendCall.mails[0]!.valueGwei).toBe(100);
     expect(sendCall.totalValueWei).toBe(100n * 10n ** 9n);
+  });
+
+  it("defaults to atomic + wait so a single-recipient send is deterministic", async () => {
+    const { key } = recipientWithKey();
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+    }));
+    await runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal" },
+      makeDeps({
+        config: configWithIdentity(),
+        recipient: key,
+        sendBatch: sendFn,
+      }),
+    );
+    const call = sendFn.mock.calls[0]![0];
+    expect(call.atomic).toBe(true);
+    expect(call.wait).toBe(true);
+  });
+
+  it("--best-effort opt-out flips atomic=false (wait stays on)", async () => {
+    const { key } = recipientWithKey();
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+    }));
+    await runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal", atomic: false },
+      makeDeps({
+        config: configWithIdentity(),
+        recipient: key,
+        sendBatch: sendFn,
+      }),
+    );
+    expect(sendFn.mock.calls[0]![0].atomic).toBe(false);
+  });
+
+  it("--no-wait flips wait=false and the result has no receipt", async () => {
+    const { key } = recipientWithKey();
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+    }));
+    const result = await runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal", wait: false },
+      makeDeps({
+        config: configWithIdentity(),
+        recipient: key,
+        sendBatch: sendFn,
+      }),
+    );
+    expect(sendFn.mock.calls[0]![0].wait).toBe(false);
+    expect(result.receipt).toBeUndefined();
+  });
+
+  it("propagates the delivery receipt when wait=true and the tx succeeded", async () => {
+    const { key } = recipientWithKey();
+    const receipt: DeliveryReceipt = {
+      status: "success",
+      blockNumber: 123n,
+      gasUsed: 50_000n,
+      totalCostWei: 100n * 10n ** 9n + 50_000n,
+      delivered: true,
+    };
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+      receipt,
+    }));
+    const result = await runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal" },
+      makeDeps({
+        config: configWithIdentity(),
+        recipient: key,
+        sendBatch: sendFn,
+      }),
+    );
+    expect(result.receipt).toEqual(receipt);
+  });
+
+  it("throws DELIVERY_FAILED when wait observes a reverted tx", async () => {
+    const { key } = recipientWithKey();
+    const receipt: DeliveryReceipt = {
+      status: "reverted",
+      blockNumber: 1n,
+      gasUsed: 21_000n,
+      totalCostWei: 21_000n,
+      delivered: false,
+    };
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+      receipt,
+    }));
+    await expect(
+      runSend(
+        { to: TO, title: "t", body: "b", urgency: "normal" },
+        makeDeps({
+          config: configWithIdentity(),
+          recipient: key,
+          sendBatch: sendFn,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "DELIVERY_FAILED" });
+  });
+
+  it("throws DELIVERY_FAILED when the tx succeeded but no MailSent event was emitted (delivered=false)", async () => {
+    const { key } = recipientWithKey();
+    const receipt: DeliveryReceipt = {
+      status: "success",
+      blockNumber: 9n,
+      gasUsed: 21_000n,
+      totalCostWei: 21_000n,
+      delivered: false,
+    };
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+      receipt,
+    }));
+    await expect(
+      runSend(
+        { to: TO, title: "t", body: "b", urgency: "normal" },
+        makeDeps({
+          config: configWithIdentity(),
+          recipient: key,
+          sendBatch: sendFn,
+        }),
+      ),
+    ).rejects.toMatchObject({ code: "DELIVERY_FAILED" });
+  });
+
+  it("refuses with FEE_EXCEEDS_MAX when recipient fee > maxFeeGwei (no pin, no send)", async () => {
+    const { key } = recipientWithKey();
+    const pinFn = vi.fn<SendDeps["pin"]>(async () => "should not be called");
+    const sendFn = vi.fn<SendDeps["sendBatch"]>(async () => ({
+      txHash: FAKE_TX,
+    }));
+    await expect(
+      runSend(
+        { to: TO, title: "t", body: "b", urgency: "normal", maxFeeGwei: 50 },
+        makeDeps({
+          config: configWithIdentity(),
+          recipient: key,
+          pin: pinFn,
+          sendBatch: sendFn,
+        }),
+      ),
+    ).rejects.toMatchObject({
+      code: "FEE_EXCEEDS_MAX",
+      details: { feeGwei: 100, maxFeeGwei: 50 },
+    });
+    expect(pinFn).not.toHaveBeenCalled();
+    expect(sendFn).not.toHaveBeenCalled();
+  });
+
+  it("passes through when recipient fee is within maxFeeGwei", async () => {
+    const { key } = recipientWithKey();
+    const result = await runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal", maxFeeGwei: 100 },
+      makeDeps({ config: configWithIdentity(), recipient: key }),
+    );
+    expect(result.txHash).toBe(FAKE_TX);
+  });
+
+  it("RECIPIENT_NO_KEY is a CliError with the typed code", async () => {
+    const noKey: RecipientKey = {
+      pub: ("0x" + "00".repeat(32)) as Hex,
+      keyNonce: 0,
+      feeGwei: 0,
+    };
+    const promise = runSend(
+      { to: TO, title: "t", body: "b", urgency: "normal" },
+      makeDeps({ config: configWithIdentity(), recipient: noKey }),
+    );
+    await expect(promise).rejects.toBeInstanceOf(CliError);
+    await expect(promise).rejects.toMatchObject({ code: "RECIPIENT_NO_KEY" });
   });
 
   it("encrypts to the recipient's public key, and the recipient can decrypt + verify", async () => {
@@ -139,9 +331,16 @@ describe("runSend", () => {
         return pinAsRealCid(bytes);
       },
     });
-    const result = await runSend({ to: TO, title: "hello", body: "world", urgency: "normal" }, deps);
+    const result = await runSend(
+      { to: TO, title: "hello", body: "world", urgency: "normal" },
+      deps,
+    );
     expect(pinned).toBeDefined();
-    const inner = decodeEncryptedBytes(pinned!, { rcpt: TO, keyNonce: key.keyNonce, sk });
+    const inner = decodeEncryptedBytes(pinned!, {
+      rcpt: TO,
+      keyNonce: key.keyNonce,
+      sk,
+    });
     const decoded = decodeEnvelope(inner);
     expect(decoded).toEqual(result.signedEnvelope);
     const recovered = await recoverEnvelopeSigner({
@@ -154,9 +353,16 @@ describe("runSend", () => {
 
   it("throws when the recipient has not published an encryption key", async () => {
     const config = configWithIdentity();
-    const noKey: RecipientKey = { pub: ("0x" + "00".repeat(32)) as Hex, keyNonce: 0, feeGwei: 0 };
+    const noKey: RecipientKey = {
+      pub: ("0x" + "00".repeat(32)) as Hex,
+      keyNonce: 0,
+      feeGwei: 0,
+    };
     await expect(
-      runSend({ to: TO, title: "t", body: "b", urgency: "normal" }, makeDeps({ config, recipient: noKey })),
+      runSend(
+        { to: TO, title: "t", body: "b", urgency: "normal" },
+        makeDeps({ config, recipient: noKey }),
+      ),
     ).rejects.toThrow(/has not published an encryption key/);
   });
 
@@ -191,7 +397,11 @@ describe("runSendDryRun", () => {
   });
 
   it("still surfaces the no-key error during dry run", async () => {
-    const noKey: RecipientKey = { pub: ("0x" + "00".repeat(32)) as Hex, keyNonce: 0, feeGwei: 0 };
+    const noKey: RecipientKey = {
+      pub: ("0x" + "00".repeat(32)) as Hex,
+      keyNonce: 0,
+      feeGwei: 0,
+    };
     await expect(
       runSendDryRun(
         { to: TO, title: "t", body: "b", urgency: "normal" },
