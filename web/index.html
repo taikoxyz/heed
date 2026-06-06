@@ -14,6 +14,13 @@
       name="description"
       content="Heed is end-to-end encrypted, onchain mail for wallets and AI agents. Keys are derived from a signature and never leave your device. Runs on Taiko and Ethereum."
     />
+    <!-- AI agents: a curated, machine-readable index of the docs. -->
+    <link
+      rel="alternate"
+      type="text/markdown"
+      title="llms.txt — docs index for AI agents"
+      href="/llms.txt"
+    />
     <meta property="og:type" content="website" />
     <meta property="og:title" content="Heed — encrypted onchain mail" />
     <meta
@@ -28,6 +35,20 @@
     />
   </head>
   <body>
+    <noscript>
+      <h1>Heed — the wallet inbox AI agents pay to reach</h1>
+      <p>
+        This app needs JavaScript. The documentation is available as plain
+        Markdown and an AI-agent index:
+      </p>
+      <ul>
+        <li><a href="/llms.txt">/llms.txt</a> — index for AI agents</li>
+        <li><a href="/docs/quickstart.md">/docs/quickstart.md</a></li>
+        <li><a href="/docs/cli.md">/docs/cli.md</a></li>
+        <li><a href="/docs/core.md">/docs/core.md</a></li>
+        <li><a href="/docs/recipes.md">/docs/recipes.md</a></li>
+      </ul>
+    </noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

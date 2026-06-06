@@ -66,6 +66,7 @@ The envelope `from = { name, owner_url, logo_cid?, uri?, sig }`. `sig` is a per-
 - Design spec — [`docs/heed-design.md`](./docs/heed-design.md)
 - Agent quickstart — [`docs/agents.md`](./docs/agents.md)
 - Agent docs (AI-readable) — [`heed.taiko.xyz/llms.txt`](https://heed.taiko.xyz/llms.txt)
+- Docs (web) — [`heed.taiko.xyz/docs`](https://heed.taiko.xyz/docs)
 - Plans — [`docs/plans/`](./docs/plans/)
 - Release smoke checklist — [`docs/release-smoke.md`](./docs/release-smoke.md)
 - Deployed contracts — [`DEPLOYED.md`](./DEPLOYED.md)

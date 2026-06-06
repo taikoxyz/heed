@@ -7,8 +7,10 @@ import {
   SendIcon,
   SettingsIcon,
   LogOutIcon,
+  BookOpenIcon,
 } from "lucide-react";
 import { WalletGate } from "./components/WalletGate";
+import { DocsPage } from "./components/DocsPage";
 import { InboxList } from "./components/InboxList";
 import { SentList } from "./components/SentList";
 import { Compose } from "./components/Compose";
@@ -75,6 +77,12 @@ function Shell() {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1.5">
+            <Button variant="ghost" size="sm" asChild className="gap-1.5">
+              <a href="/docs">
+                <BookOpenIcon className="size-4" />
+                <span className="hidden sm:inline">Docs</span>
+              </a>
+            </Button>
             <NetworkSwitcher />
             <ThemeToggle />
             <Button
@@ -152,6 +160,12 @@ function Shell() {
 }
 
 export default function App() {
+  if (
+    typeof window !== "undefined" &&
+    window.location.pathname.startsWith("/docs")
+  ) {
+    return <DocsPage />;
+  }
   return (
     <WalletGate>
       <Shell />
