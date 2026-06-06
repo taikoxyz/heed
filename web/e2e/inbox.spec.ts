@@ -19,9 +19,8 @@ const state: State = JSON.parse(readFileSync(STATE_FILE, "utf8"));
 async function connectAndOpenAll(page: Page): Promise<void> {
   await page.addInitScript(walletStubInit(state.wallet));
   await page.goto("/");
-  // The wallet gate renders one button per connector; click the first.
-  await page.getByText("Connect a wallet to view your inbox.").waitFor();
-  await page.locator("button").first().click();
+  // The stub reports an authorized account, so wagmi reconnects on mount and
+  // the inbox renders without driving the connect modal.
   await expect(page.getByText(state.recipient)).toBeVisible();
 
   // Opening a card replaces its "Open" button with the decrypted content, so

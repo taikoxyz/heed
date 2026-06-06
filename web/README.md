@@ -37,14 +37,14 @@ Copy [`.env.example`](.env.example) to `.env.local` and adjust as needed. The
 defaults target Taiko mainnet with the production Heed contract (deployment
 captured in [`deployments/taiko.json`](../deployments/taiko.json)).
 
-| Variable                 | Purpose                                                          |
-| ------------------------ | ---------------------------------------------------------------- |
-| `VITE_HEED_ADDRESS`      | Heed contract address                                            |
-| `VITE_TAIKO_RPC`         | RPC endpoint for log scans + reads                               |
-| `VITE_IPFS_GATEWAY`      | Gateway used to fetch encrypted payloads                         |
-| `VITE_INDEXER_URL`       | Optional GraphQL endpoint; falls back to RPC log scan when unset |
-| `VITE_DEPLOYED_AT_BLOCK` | Lower bound for `getLogs`                                        |
-| `VITE_WC_PROJECT_ID`     | WalletConnect project id; the WC connector is omitted when unset |
+| Variable                 | Purpose                                                                                                                                   |
+| ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_HEED_ADDRESS`      | Heed contract address                                                                                                                     |
+| `VITE_TAIKO_RPC`         | RPC endpoint for log scans + reads                                                                                                        |
+| `VITE_IPFS_GATEWAY`      | Gateway used to fetch encrypted payloads                                                                                                  |
+| `VITE_INDEXER_URL`       | Optional GraphQL endpoint; falls back to RPC log scan when unset                                                                          |
+| `VITE_DEPLOYED_AT_BLOCK` | Lower bound for `getLogs`                                                                                                                 |
+| `VITE_WC_PROJECT_ID`     | WalletConnect Cloud project id; enables WalletConnect + mobile wallets in the RainbowKit connect modal (injected wallets work without it) |
 
 Settings entered through the in-app **Settings** panel persist to localStorage
 and override these defaults at runtime.
@@ -113,7 +113,7 @@ deployment when they are unset.
   the EIP-712 signature is cached in a process-local `Map`, never persisted.
 - `index.html` ships a strict CSP: `default-src 'self'`; `script-src 'self'`
   (no `eval`, no inline); explicit allowlist for Taiko RPC, Pinata gateway,
-  and WalletConnect.
+  and the wallet connect providers (WalletConnect, Coinbase).
 - No analytics, telemetry, or third-party scripts. The bundle does not phone
   home.
 
