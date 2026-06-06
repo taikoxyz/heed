@@ -68,6 +68,20 @@ export function WalletGate({ children }: { children: ReactNode }) {
           </div>
 
           <p
+            className="rise mt-6 text-sm text-muted-foreground"
+            style={{ animationDelay: "360ms" }}
+          >
+            Building an agent?{" "}
+            <a
+              href="/docs"
+              className="text-foreground underline decoration-border underline-offset-4 hover:text-signal"
+            >
+              Read the docs
+            </a>{" "}
+            — no wallet needed.
+          </p>
+
+          <p
             className="rise mt-8 font-mono text-xs tracking-wide text-muted-foreground"
             style={{ animationDelay: "400ms" }}
           >

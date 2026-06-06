@@ -1,0 +1,9 @@
+# https://heed.taiko.xyz/robots.txt
+User-agent: *
+Allow: /
+
+# AI agents: a curated, machine-readable index of the docs lives at
+#   https://heed.taiko.xyz/llms.txt
+# Per-package Markdown: /docs/quickstart.md /docs/cli.md /docs/core.md /docs/recipes.md
+
+Sitemap: https://heed.taiko.xyz/sitemap.xml
