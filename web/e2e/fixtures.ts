@@ -42,9 +42,12 @@ export async function injectWallet(
   }, chainIdHex);
 }
 
-/** Loads the app and connects via the injected connector. */
+/**
+ * Loads the app. The injected stub reports an authorized account, so wagmi
+ * reconnects it on mount and the connected shell renders without driving the
+ * RainbowKit modal.
+ */
 export async function connect(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button").first().click();
   await expect(page.getByText(TEST_ADDRESS)).toBeVisible();
 }

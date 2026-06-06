@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
 import { ArrowRightIcon } from "lucide-react";
-import { useAccount, useConnect } from "wagmi";
+import { useAccount } from "wagmi";
+import { useConnectModal } from "@rainbow-me/rainbowkit";
 import { HeedWordmark } from "./HeedWordmark";
 import { Button } from "@/components/ui/button";
 
 export function WalletGate({ children }: { children: ReactNode }) {
   const { isConnected } = useAccount();
-  const { connect, connectors } = useConnect();
+  const { openConnectModal } = useConnectModal();
 
   if (!isConnected) {
     return (
@@ -54,20 +55,16 @@ export function WalletGate({ children }: { children: ReactNode }) {
             <p className="label-mono mb-3">
               Connect a wallet to view your inbox.
             </p>
-            <div className="flex flex-col gap-2">
-              {connectors.map((c) => (
-                <Button
-                  key={c.uid}
-                  variant="outline"
-                  size="lg"
-                  className="group/c h-11 w-full justify-between text-sm"
-                  onClick={() => connect({ connector: c })}
-                >
-                  <span>{c.name}</span>
-                  <ArrowRightIcon className="size-4 transition-transform group-hover/c:translate-x-0.5" />
-                </Button>
-              ))}
-            </div>
+            <Button
+              variant="outline"
+              size="lg"
+              className="group/c h-11 w-full justify-between text-sm"
+              onClick={openConnectModal}
+              disabled={!openConnectModal}
+            >
+              <span>Connect wallet</span>
+              <ArrowRightIcon className="size-4 transition-transform group-hover/c:translate-x-0.5" />
+            </Button>
           </div>
 
           <p
