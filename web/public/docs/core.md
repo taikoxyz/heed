@@ -114,6 +114,8 @@ async function send(recipient: `0x${string}`) {
   // 4. Submit on-chain, paying the recipient's fee. atomic=true reverts (and
   //    refunds) the whole tx if delivery fails.
   const write = createWriteClient(walletClient, CONTRACT);
+  // Pay the recipient's fee. If they have trusted you on-chain the fee is waived
+  // (the contract requires value >= 0), so you may pass valueGwei: 0 / 0n here.
   const totalValueWei = BigInt(inbox.feeGwei) * 10n ** 9n;
   const txHash = await write.sendBatch(
     [{ recipient, valueGwei: inbox.feeGwei, contentRef }],
@@ -146,7 +148,11 @@ import { hexToBytes } from "viem";
 
 const GATEWAY = "https://gateway.pinata.cloud";
 const DEPLOYED_AT_BLOCK = 7500287n;
-const KEY_NONCE = 0; // bump only if you rotate your published key
+// Each message is locked to whatever key nonce was current when it was sent, so
+// decryption only succeeds at that nonce. Use your current nonce here; to read
+// mail sent before a key rotation, derive `sk` at the older nonce too (the
+// previous key stays available as inbox.keys[1]).
+const KEY_NONCE = 0;
 
 async function readInbox() {
   // Derive your X25519 private key from a signature over KEY_TYPED_DATA. This is

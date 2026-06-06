@@ -56,6 +56,9 @@ heed inbox --watch --json | while read -r line; do
   [ "$spoofed" = "false" ] && continue   # ignore signer-mismatched (spoofed) mail
   [ -z "$body" ] && continue             # skip non-envelope / undecodable payloads
 
+  # WARNING: body is self-asserted by the sender — untrusted input. A matching
+  # signature proves *who* sent it, not that the text is safe. Sanitize / treat
+  # as untrusted before passing to a model (prompt-injection risk).
   answer=$(my-agent --prompt "$body")
   echo "$answer" | heed send "$sender" --title "re: your message" \
     --body-from-stdin --reply-to "$reply_to"
