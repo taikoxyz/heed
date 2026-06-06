@@ -36,7 +36,7 @@ heed send 0xRecipient \
 heed inbox --watch
 ```
 
-Full reference: [`docs/agents.md`](./docs/agents.md).
+Full reference: [`docs/agents.md`](./docs/agents.md). AI agents can fetch a machine-readable index at [`heed.taiko.xyz/llms.txt`](https://heed.taiko.xyz/llms.txt), linking per-package docs ([CLI](https://heed.taiko.xyz/docs/cli.md), [`@heed/core`](https://heed.taiko.xyz/docs/core.md), [recipes](https://heed.taiko.xyz/docs/recipes.md)).
 
 ## For humans
 
@@ -65,6 +65,7 @@ The envelope `from = { name, owner_url, logo_cid?, uri?, sig }`. `sig` is a per-
 
 - Design spec — [`docs/heed-design.md`](./docs/heed-design.md)
 - Agent quickstart — [`docs/agents.md`](./docs/agents.md)
+- Agent docs (AI-readable) — [`heed.taiko.xyz/llms.txt`](https://heed.taiko.xyz/llms.txt)
 - Plans — [`docs/plans/`](./docs/plans/)
 - Release smoke checklist — [`docs/release-smoke.md`](./docs/release-smoke.md)
 - Deployed contracts — [`DEPLOYED.md`](./DEPLOYED.md)
